@@ -11,10 +11,15 @@ export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [show, setShow] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    // Already installed as PWA
+    if (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone) {
+      setIsStandalone(true);
+      return;
+    }
     if (sessionStorage.getItem("pwa-dismissed") === "true") return;
-    if (window.matchMedia("(display-mode: standalone)").matches) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -24,8 +29,7 @@ export default function InstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Toujours afficher le prompt après 2s si le navigateur ne supporte pas beforeinstallprompt
-    // (iOS Safari, Firefox, etc.)
+    // Fallback: show after 2s for browsers that support install but fire event late
     const timer = setTimeout(() => {
       setShow(true);
     }, 2000);
@@ -38,6 +42,7 @@ export default function InstallPrompt() {
 
   const handleInstall = async () => {
     if (deferredPrompt) {
+      // Directly trigger the native install prompt
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") {
@@ -45,8 +50,17 @@ export default function InstallPrompt() {
       }
       setDeferredPrompt(null);
     } else {
-      // Fallback pour iOS / navigateurs sans beforeinstallprompt
-      alert("Pour installer FREAK OUT :\n\n📱 iPhone : Appuie sur le bouton Partager ⬆️ puis \"Sur l'écran d'accueil\"\n\n🤖 Android : Menu ⋮ puis \"Installer l'application\"");
+      // For iOS/Safari: detect and show specific instructions
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        // Can't auto-install on iOS, show minimal instructions
+        setShow(false);
+        sessionStorage.setItem("pwa-dismissed", "true");
+      } else {
+        // On supported browsers without the event, just dismiss
+        setShow(false);
+        sessionStorage.setItem("pwa-dismissed", "true");
+      }
     }
   };
 
@@ -56,7 +70,7 @@ export default function InstallPrompt() {
     sessionStorage.setItem("pwa-dismissed", "true");
   };
 
-  if (dismissed || !show) return null;
+  if (isStandalone || dismissed || !show) return null;
 
   return (
     <AnimatePresence>

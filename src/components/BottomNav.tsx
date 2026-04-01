@@ -1,10 +1,11 @@
-import { Home, MapPin, Trophy, User } from "lucide-react";
+import { Home, MapPin, Trophy, User, Wallet } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const navItems = [
   { icon: Home, label: "Accueil", path: "/" },
   { icon: MapPin, label: "Activité", path: "/activity" },
+  { icon: Wallet, label: "Portefeuille", path: "/wallet" },
   { icon: Trophy, label: "Classement", path: "/leaderboard" },
   { icon: User, label: "Profil", path: "/profile" },
 ];

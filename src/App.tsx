@@ -10,6 +10,7 @@ import ActivityScreen from "./pages/ActivityScreen";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
 import Challenge from "./pages/Challenge";
+import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/challenge" element={<Challenge />} />
+          <Route path="/wallet" element={<Wallet />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <BottomNav />
