@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, Square, Route, Timer, Zap, ChevronLeft } from "lucide-react";
+import { Play, Pause, Square, Route, Timer, Zap, ChevronLeft, Shield, ShieldAlert, ShieldX, MapPin, Footprints } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { calculateCalories } from "@/lib/gamification";
+import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeStepsVsDistance, SessionIntegrity, analyzeSession, CheatAlert } from "@/lib/anticheat";
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
@@ -11,20 +12,147 @@ export default function ActivityScreen() {
   const [state, setState] = useState<TrackingState>("idle");
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
+  const [gpsPoints, setGpsPoints] = useState<GpsPoint[]>([]);
+  const [steps, setSteps] = useState(0);
+  const [gpsStatus, setGpsStatus] = useState<"waiting" | "active" | "denied" | "unavailable">("waiting");
+  const [integrity, setIntegrity] = useState<SessionIntegrity | null>(null);
+  const [liveAlerts, setLiveAlerts] = useState<CheatAlert[]>([]);
   const intervalRef = useRef<number | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const lastPointRef = useRef<GpsPoint | null>(null);
+  const stepsBaseRef = useRef<number | null>(null);
 
+  // ─── GPS Tracking ───
+  const startGps = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGpsStatus("unavailable");
+      return;
+    }
+
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGpsStatus("active");
+        const point: GpsPoint = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          timestamp: pos.timestamp,
+          accuracy: pos.coords.accuracy,
+        };
+
+        // Calculer distance réelle
+        if (lastPointRef.current) {
+          const d = haversineDistance(lastPointRef.current, point);
+          // Ignorer les micro-mouvements (bruit GPS) et les sauts impossibles
+          if (d > 0.005 && d < 0.5) {
+            setDistance((prev) => prev + d);
+          }
+
+          // Anti-cheat : vérifier le saut GPS
+          const alert = analyzeGpsJump(lastPointRef.current, point);
+          if (alert) {
+            setLiveAlerts((prev) => [...prev.slice(-4), alert]);
+          }
+        }
+
+        lastPointRef.current = point;
+        setGpsPoints((prev) => [...prev, point]);
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
+        else setGpsStatus("unavailable");
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+    );
+
+    watchIdRef.current = id;
+  }, []);
+
+  const stopGps = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  }, []);
+
+  // ─── Step Counter (DeviceMotion) ───
+  useEffect(() => {
+    if (state !== "running") return;
+
+    let stepCount = 0;
+    let lastAccel = 0;
+    let cooldown = false;
+
+    const handleMotion = (e: DeviceMotionEvent) => {
+      const acc = e.accelerationIncludingGravity;
+      if (!acc || acc.y === null) return;
+
+      const magnitude = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2 + (acc.z || 0) ** 2);
+      const delta = Math.abs(magnitude - lastAccel);
+      lastAccel = magnitude;
+
+      // Détecter un pas (seuil de variation d'accélération)
+      if (delta > 3 && !cooldown) {
+        stepCount++;
+        setSteps((s) => s + 1);
+        cooldown = true;
+        setTimeout(() => { cooldown = false; }, 300);
+      }
+    };
+
+    window.addEventListener("devicemotion", handleMotion);
+    return () => window.removeEventListener("devicemotion", handleMotion);
+  }, [state]);
+
+  // ─── Timer ───
   useEffect(() => {
     if (state === "running") {
       intervalRef.current = window.setInterval(() => {
         setSeconds((s) => s + 1);
-        // Simulate distance increase (~10 km/h)
-        setDistance((d) => d + 0.00278);
       }, 1000);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [state]);
+
+  // ─── Anti-cheat vitesse en continu ───
+  useEffect(() => {
+    if (state !== "running" || seconds === 0) return;
+    const currentSpeed = distance / (seconds / 3600);
+    const alert = analyzeSpeed(currentSpeed);
+    if (alert) {
+      setLiveAlerts((prev) => {
+        // Ne pas spammer les mêmes alertes
+        if (prev.length > 0 && prev[prev.length - 1].level === alert.level) return prev;
+        return [...prev.slice(-4), alert];
+      });
+    }
+  }, [seconds, distance, state]);
+
+  // ─── Start / Stop ───
+  const handleStart = () => {
+    setState("running");
+    startGps();
+  };
+
+  const handlePause = () => {
+    setState("paused");
+    stopGps();
+  };
+
+  const handleResume = () => {
+    setState("running");
+    startGps();
+  };
+
+  const handleFinish = () => {
+    stopGps();
+    setState("finished");
+    // Analyse finale anti-cheat
+    const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
+    const result = analyzeSession(gpsPoints, steps, distance, speed);
+    setIntegrity(result);
+  };
 
   const speed = seconds > 0 ? (distance / (seconds / 3600)) : 0;
   const pace = speed > 0 ? 60 / speed : 0;
@@ -39,8 +167,11 @@ export default function ActivityScreen() {
       : `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
   };
 
-  const handleFinish = () => {
-    setState("finished");
+  const integrityIcon = () => {
+    if (!integrity) return null;
+    if (integrity.status === "clean") return <Shield className="w-5 h-5 text-primary" />;
+    if (integrity.status === "suspect") return <ShieldAlert className="w-5 h-5 text-accent" />;
+    return <ShieldX className="w-5 h-5 text-destructive" />;
   };
 
   return (
@@ -48,15 +179,37 @@ export default function ActivityScreen() {
       {/* Map placeholder */}
       <div className="relative h-[45vh] bg-muted/30 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/90" />
-        {/* Simulated map grid */}
+        {/* Grid */}
         <div className="absolute inset-0 opacity-10">
           {Array.from({ length: 20 }).map((_, i) => (
-            <div key={i} className="absolute border-t border-foreground/20 w-full" style={{ top: `${i * 5}%` }} />
+            <div key={`h${i}`} className="absolute border-t border-foreground/20 w-full" style={{ top: `${i * 5}%` }} />
           ))}
           {Array.from({ length: 20 }).map((_, i) => (
-            <div key={i} className="absolute border-l border-foreground/20 h-full" style={{ left: `${i * 5}%` }} />
+            <div key={`v${i}`} className="absolute border-l border-foreground/20 h-full" style={{ left: `${i * 5}%` }} />
           ))}
         </div>
+
+        {/* GPS Status */}
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold glass ${
+            gpsStatus === "active" ? "text-primary" :
+            gpsStatus === "denied" ? "text-destructive" :
+            "text-muted-foreground"
+          }`}>
+            <MapPin className="w-3.5 h-3.5" />
+            {gpsStatus === "active" ? "GPS actif" :
+             gpsStatus === "denied" ? "GPS refusé" :
+             gpsStatus === "unavailable" ? "GPS indisponible" :
+             "En attente"}
+          </div>
+          {state === "running" && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold glass text-muted-foreground">
+              <Footprints className="w-3.5 h-3.5" />
+              {steps}
+            </div>
+          )}
+        </div>
+
         {state === "running" && (
           <motion.div
             animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
@@ -72,6 +225,32 @@ export default function ActivityScreen() {
         </button>
       </div>
 
+      {/* Live cheat alerts */}
+      <AnimatePresence>
+        {liveAlerts.length > 0 && state === "running" && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-4 overflow-hidden"
+          >
+            <div className={`rounded-xl p-3 mt-2 flex items-center gap-3 border ${
+              liveAlerts[liveAlerts.length - 1].level === "fraud"
+                ? "bg-destructive/10 border-destructive/30"
+                : "bg-accent/10 border-accent/30"
+            }`}>
+              {liveAlerts[liveAlerts.length - 1].level === "fraud"
+                ? <ShieldX className="w-5 h-5 text-destructive shrink-0" />
+                : <ShieldAlert className="w-5 h-5 text-accent shrink-0" />
+              }
+              <p className="text-xs font-medium text-foreground">
+                {liveAlerts[liveAlerts.length - 1].reason}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Stats */}
       <div className="flex-1 px-4 -mt-8 relative z-10">
         <motion.div
@@ -79,7 +258,6 @@ export default function ActivityScreen() {
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl bg-card border border-border p-6 mb-4"
         >
-          {/* Main stat */}
           <div className="text-center mb-6">
             <p className="text-sm text-muted-foreground mb-1">Distance</p>
             <p className="font-display font-black text-5xl text-foreground neon-text">
@@ -117,7 +295,7 @@ export default function ActivityScreen() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={() => setState("running")}
+                onClick={handleStart}
                 className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center neon-glow-strong"
               >
                 <Play className="w-8 h-8 text-primary-foreground ml-1" />
@@ -125,36 +303,20 @@ export default function ActivityScreen() {
             )}
             {state === "running" && (
               <motion.div key="controls" className="flex items-center gap-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setState("paused")}
-                  className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center"
-                >
+                <motion.button whileTap={{ scale: 0.9 }} onClick={handlePause} className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
                   <Pause className="w-6 h-6 text-foreground" />
                 </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleFinish}
-                  className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center"
-                >
+                <motion.button whileTap={{ scale: 0.9 }} onClick={handleFinish} className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center">
                   <Square className="w-6 h-6 text-destructive-foreground" />
                 </motion.button>
               </motion.div>
             )}
             {state === "paused" && (
               <motion.div key="paused" className="flex items-center gap-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setState("running")}
-                  className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center neon-glow"
-                >
+                <motion.button whileTap={{ scale: 0.9 }} onClick={handleResume} className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center neon-glow">
                   <Play className="w-6 h-6 text-primary-foreground ml-0.5" />
                 </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleFinish}
-                  className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center"
-                >
+                <motion.button whileTap={{ scale: 0.9 }} onClick={handleFinish} className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center">
                   <Square className="w-6 h-6 text-destructive-foreground" />
                 </motion.button>
               </motion.div>
@@ -166,12 +328,50 @@ export default function ActivityScreen() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center w-full"
               >
+                {/* Integrity result */}
+                {integrity && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`rounded-xl p-4 mb-4 border flex items-center gap-3 ${
+                      integrity.status === "clean"
+                        ? "bg-primary/10 border-primary/30"
+                        : integrity.status === "suspect"
+                        ? "bg-accent/10 border-accent/30"
+                        : "bg-destructive/10 border-destructive/30"
+                    }`}
+                  >
+                    {integrityIcon()}
+                    <div className="text-left flex-1">
+                      <p className="font-display font-bold text-sm">
+                        {integrity.status === "clean" ? "Session vérifiée ✓" :
+                         integrity.status === "suspect" ? "Session suspecte ⚠️" :
+                         "Session bloquée 🚫"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Confiance : {integrity.confidence}%
+                        {integrity.alerts.length > 0 && ` • ${integrity.alerts.length} alerte(s)`}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+
                 <p className="font-display font-black text-2xl text-primary neon-text mb-2">
-                  COURSE TERMINÉE ! 🎉
+                  {integrity?.isBlocked ? "SESSION REJETÉE 🚫" : "COURSE TERMINÉE ! 🎉"}
                 </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  +{Math.round(distance * 10 + (speed > 10 ? distance * 5 : 0))} points gagnés
+                <p className="text-sm text-muted-foreground mb-1">
+                  {steps > 0 && `${steps} pas détectés • `}{gpsPoints.length} points GPS
                 </p>
+                {!integrity?.isBlocked && (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    +{Math.round(distance * 10 + (speed > 10 ? distance * 5 : 0))} points gagnés
+                  </p>
+                )}
+                {integrity?.isBlocked && (
+                  <p className="text-sm text-destructive mb-4">
+                    Aucun point attribué — activité suspecte détectée
+                  </p>
+                )}
                 <button
                   onClick={() => navigate("/")}
                   className="rounded-xl gradient-primary px-8 py-3 font-display font-bold text-primary-foreground"

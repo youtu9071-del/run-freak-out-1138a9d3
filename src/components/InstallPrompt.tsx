@@ -13,7 +13,6 @@ export default function InstallPrompt() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Don't show if already dismissed this session or already installed
     if (sessionStorage.getItem("pwa-dismissed") === "true") return;
     if (window.matchMedia("(display-mode: standalone)").matches) return;
 
@@ -24,17 +23,31 @@ export default function InstallPrompt() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    // Toujours afficher le prompt après 2s si le navigateur ne supporte pas beforeinstallprompt
+    // (iOS Safari, Firefox, etc.)
+    const timer = setTimeout(() => {
+      setShow(true);
+    }, 2000);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setShow(false);
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setShow(false);
+      }
+      setDeferredPrompt(null);
+    } else {
+      // Fallback pour iOS / navigateurs sans beforeinstallprompt
+      alert("Pour installer FREAK OUT :\n\n📱 iPhone : Appuie sur le bouton Partager ⬆️ puis \"Sur l'écran d'accueil\"\n\n🤖 Android : Menu ⋮ puis \"Installer l'application\"");
     }
-    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
@@ -52,7 +65,7 @@ export default function InstallPrompt() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: "spring", damping: 20 }}
-        className="fixed bottom-20 right-4 z-50 flex items-center gap-3 rounded-2xl bg-card border border-primary/30 p-4 neon-glow max-w-xs shadow-lg"
+        className="fixed bottom-24 right-4 left-4 sm:left-auto z-50 flex items-center gap-3 rounded-2xl bg-card border border-primary/30 p-4 neon-glow max-w-xs shadow-lg sm:right-4"
       >
         <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center shrink-0">
           <Download className="w-5 h-5 text-primary-foreground" />
