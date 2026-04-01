@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Square, Route, Timer, Zap, ChevronLeft, Shield, ShieldAlert, ShieldX, MapPin, Footprints } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { calculateCalories } from "@/lib/gamification";
-import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeStepsVsDistance, SessionIntegrity, analyzeSession, CheatAlert } from "@/lib/anticheat";
+import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeSession, CheatAlert, SessionIntegrity } from "@/lib/anticheat";
+import { calculateFP, saveActivity } from "@/lib/freakPoints";
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
@@ -17,10 +18,71 @@ export default function ActivityScreen() {
   const [gpsStatus, setGpsStatus] = useState<"waiting" | "active" | "denied" | "unavailable">("waiting");
   const [integrity, setIntegrity] = useState<SessionIntegrity | null>(null);
   const [liveAlerts, setLiveAlerts] = useState<CheatAlert[]>([]);
+  const [savedFp, setSavedFp] = useState<number | null>(null);
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
-  const stepsBaseRef = useRef<number | null>(null);
+
+  // ─── Pedometer: use Sensor API if available, fallback to devicemotion ───
+  useEffect(() => {
+    if (state !== "running") return;
+
+    // Try the Sensor API (more accurate pedometer)
+    if ('Accelerometer' in window) {
+      try {
+        const sensor = new (window as any).Accelerometer({ frequency: 30 });
+        let lastMag = 9.8;
+        let cooldown = false;
+
+        sensor.addEventListener('reading', () => {
+          const mag = Math.sqrt(sensor.x ** 2 + sensor.y ** 2 + sensor.z ** 2);
+          const delta = Math.abs(mag - lastMag);
+          lastMag = mag;
+
+          if (delta > 2.5 && !cooldown) {
+            setSteps(s => s + 1);
+            cooldown = true;
+            setTimeout(() => { cooldown = false; }, 250);
+          }
+        });
+
+        sensor.start();
+        return () => sensor.stop();
+      } catch {
+        // Fall through to devicemotion
+      }
+    }
+
+    // Fallback: DeviceMotion with improved filtering
+    let lastMagnitude = 9.8;
+    let cooldown = false;
+    let samples: number[] = [];
+
+    const handleMotion = (e: DeviceMotionEvent) => {
+      const acc = e.accelerationIncludingGravity;
+      if (!acc || acc.y === null) return;
+
+      const magnitude = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2 + (acc.z || 0) ** 2);
+      
+      // Simple low-pass filter
+      samples.push(magnitude);
+      if (samples.length > 5) samples.shift();
+      const smoothed = samples.reduce((a, b) => a + b, 0) / samples.length;
+      
+      const delta = Math.abs(smoothed - lastMagnitude);
+      lastMagnitude = smoothed;
+
+      // Step detection with dynamic threshold
+      if (delta > 2.2 && !cooldown) {
+        setSteps(s => s + 1);
+        cooldown = true;
+        setTimeout(() => { cooldown = false; }, 280);
+      }
+    };
+
+    window.addEventListener("devicemotion", handleMotion);
+    return () => window.removeEventListener("devicemotion", handleMotion);
+  }, [state]);
 
   // ─── GPS Tracking ───
   const startGps = useCallback(() => {
@@ -39,23 +101,20 @@ export default function ActivityScreen() {
           accuracy: pos.coords.accuracy,
         };
 
-        // Calculer distance réelle
+        // Only accept accurate readings
+        if (pos.coords.accuracy > 50) return;
+
         if (lastPointRef.current) {
           const d = haversineDistance(lastPointRef.current, point);
-          // Ignorer les micro-mouvements (bruit GPS) et les sauts impossibles
-          if (d > 0.005 && d < 0.5) {
-            setDistance((prev) => prev + d);
+          if (d > 0.003 && d < 0.5) {
+            setDistance(prev => prev + d);
           }
-
-          // Anti-cheat : vérifier le saut GPS
           const alert = analyzeGpsJump(lastPointRef.current, point);
-          if (alert) {
-            setLiveAlerts((prev) => [...prev.slice(-4), alert]);
-          }
+          if (alert) setLiveAlerts(prev => [...prev.slice(-4), alert]);
         }
 
         lastPointRef.current = point;
-        setGpsPoints((prev) => [...prev, point]);
+        setGpsPoints(prev => [...prev, point]);
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
@@ -74,87 +133,61 @@ export default function ActivityScreen() {
     }
   }, []);
 
-  // ─── Step Counter (DeviceMotion) ───
-  useEffect(() => {
-    if (state !== "running") return;
-
-    let stepCount = 0;
-    let lastAccel = 0;
-    let cooldown = false;
-
-    const handleMotion = (e: DeviceMotionEvent) => {
-      const acc = e.accelerationIncludingGravity;
-      if (!acc || acc.y === null) return;
-
-      const magnitude = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2 + (acc.z || 0) ** 2);
-      const delta = Math.abs(magnitude - lastAccel);
-      lastAccel = magnitude;
-
-      // Détecter un pas (seuil de variation d'accélération)
-      if (delta > 3 && !cooldown) {
-        stepCount++;
-        setSteps((s) => s + 1);
-        cooldown = true;
-        setTimeout(() => { cooldown = false; }, 300);
-      }
-    };
-
-    window.addEventListener("devicemotion", handleMotion);
-    return () => window.removeEventListener("devicemotion", handleMotion);
-  }, [state]);
-
   // ─── Timer ───
   useEffect(() => {
     if (state === "running") {
-      intervalRef.current = window.setInterval(() => {
-        setSeconds((s) => s + 1);
-      }, 1000);
+      intervalRef.current = window.setInterval(() => setSeconds(s => s + 1), 1000);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [state]);
 
-  // ─── Anti-cheat vitesse en continu ───
+  // ─── Anti-cheat speed check ───
   useEffect(() => {
     if (state !== "running" || seconds === 0) return;
     const currentSpeed = distance / (seconds / 3600);
     const alert = analyzeSpeed(currentSpeed);
     if (alert) {
-      setLiveAlerts((prev) => {
-        // Ne pas spammer les mêmes alertes
+      setLiveAlerts(prev => {
         if (prev.length > 0 && prev[prev.length - 1].level === alert.level) return prev;
         return [...prev.slice(-4), alert];
       });
     }
   }, [seconds, distance, state]);
 
-  // ─── Start / Stop ───
-  const handleStart = () => {
-    setState("running");
-    startGps();
-  };
-
-  const handlePause = () => {
-    setState("paused");
-    stopGps();
-  };
-
-  const handleResume = () => {
-    setState("running");
-    startGps();
-  };
+  // ─── Controls ───
+  const handleStart = () => { setState("running"); startGps(); };
+  const handlePause = () => { setState("paused"); stopGps(); };
+  const handleResume = () => { setState("running"); startGps(); };
 
   const handleFinish = () => {
     stopGps();
     setState("finished");
-    // Analyse finale anti-cheat
     const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
     const result = analyzeSession(gpsPoints, steps, distance, speed);
     setIntegrity(result);
+
+    // Calculate FP and save activity
+    const fp = calculateFP(distance, steps);
+    const activity = {
+      id: Date.now().toString(),
+      date: new Date().toISOString().split("T")[0],
+      distanceKm: Math.round(distance * 100) / 100,
+      steps,
+      durationMin: Math.round(seconds / 60),
+      avgSpeed: Math.round(speed * 10) / 10,
+      calories: calculateCalories(distance),
+      fpFromKm: fp.fpFromKm,
+      fpFromSteps: fp.fpFromSteps,
+      totalFp: result.isBlocked ? 0 : fp.totalFp,
+      status: result.status,
+    };
+    saveActivity(activity);
+    setSavedFp(result.isBlocked ? 0 : fp.totalFp);
   };
 
-  const speed = seconds > 0 ? (distance / (seconds / 3600)) : 0;
+  const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
   const pace = speed > 0 ? 60 / speed : 0;
   const calories = calculateCalories(distance);
 
@@ -179,7 +212,6 @@ export default function ActivityScreen() {
       {/* Map placeholder */}
       <div className="relative h-[45vh] bg-muted/30 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/90" />
-        {/* Grid */}
         <div className="absolute inset-0 opacity-10">
           {Array.from({ length: 20 }).map((_, i) => (
             <div key={`h${i}`} className="absolute border-t border-foreground/20 w-full" style={{ top: `${i * 5}%` }} />
@@ -328,7 +360,6 @@ export default function ActivityScreen() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center w-full"
               >
-                {/* Integrity result */}
                 {integrity && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -362,9 +393,9 @@ export default function ActivityScreen() {
                 <p className="text-sm text-muted-foreground mb-1">
                   {steps > 0 && `${steps} pas détectés • `}{gpsPoints.length} points GPS
                 </p>
-                {!integrity?.isBlocked && (
-                  <p className="text-sm text-muted-foreground mb-4">
-                    +{Math.round(distance * 10 + (speed > 10 ? distance * 5 : 0))} points gagnés
+                {savedFp !== null && !integrity?.isBlocked && (
+                  <p className="text-lg font-bold text-primary mb-4">
+                    +{savedFp.toFixed(1)} Freak Points gagnés 💰
                   </p>
                 )}
                 {integrity?.isBlocked && (
