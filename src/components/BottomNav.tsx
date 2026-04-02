@@ -1,4 +1,4 @@
-import { Home, MapPin, Trophy, User, Wallet } from "lucide-react";
+import { Home, MapPin, Swords, User, Wallet } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -6,7 +6,7 @@ const navItems = [
   { icon: Home, label: "Accueil", path: "/" },
   { icon: MapPin, label: "Activité", path: "/activity" },
   { icon: Wallet, label: "Portefeuille", path: "/wallet" },
-  { icon: Trophy, label: "Classement", path: "/leaderboard" },
+  { icon: Swords, label: "Défis", path: "/challenges" },
   { icon: User, label: "Profil", path: "/profile" },
 ];
 
@@ -32,12 +32,8 @@ export default function BottomNav() {
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              <Icon
-                className={`w-5 h-5 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}
-              />
-              <span
-                className={`text-[10px] font-medium transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}
-              >
+              <Icon className={`w-5 h-5 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`} />
+              <span className={`text-[10px] font-medium transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
                 {label}
               </span>
             </button>
