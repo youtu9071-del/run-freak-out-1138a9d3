@@ -78,9 +78,9 @@ export default function Onboarding() {
       await supabase
         .from("profiles")
         .update({
-          gender: newAnswers.gender,
-          fitness_level: newAnswers.fitness_level,
-          goal: newAnswers.goal,
+        gender: newAnswers.gender as any,
+          fitness_level: newAnswers.fitness_level as any,
+          goal: newAnswers.goal as any,
           onboarding_completed: true,
         })
         .eq("user_id", user?.id);
