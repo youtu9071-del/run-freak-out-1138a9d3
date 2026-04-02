@@ -290,6 +290,7 @@ export type Database = {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
       }
+      update_profile_stats: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
       challenge_status: "pending" | "active" | "completed"
