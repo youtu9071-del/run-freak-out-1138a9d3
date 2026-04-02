@@ -14,16 +14,286 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      challenge_results: {
+        Row: {
+          challenge_id: string
+          completed: boolean | null
+          created_at: string | null
+          distance_km: number | null
+          freak_points: number | null
+          id: string
+          time_seconds: number | null
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          completed?: boolean | null
+          created_at?: string | null
+          distance_km?: number | null
+          freak_points?: number | null
+          id?: string
+          time_seconds?: number | null
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          completed?: boolean | null
+          created_at?: string | null
+          distance_km?: number | null
+          freak_points?: number | null
+          id?: string
+          time_seconds?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_results_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
+        Row: {
+          created_at: string | null
+          distance_km: number
+          id: string
+          status: Database["public"]["Enums"]["challenge_status"] | null
+          team_a_avg_time: number | null
+          team_a_id: string
+          team_b_avg_time: number | null
+          team_b_id: string
+          time_limit_hours: number | null
+          winner_team_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          distance_km?: number
+          id?: string
+          status?: Database["public"]["Enums"]["challenge_status"] | null
+          team_a_avg_time?: number | null
+          team_a_id: string
+          team_b_avg_time?: number | null
+          team_b_id: string
+          time_limit_hours?: number | null
+          winner_team_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          distance_km?: number
+          id?: string
+          status?: Database["public"]["Enums"]["challenge_status"] | null
+          team_a_avg_time?: number | null
+          team_a_id?: string
+          team_b_avg_time?: number | null
+          team_b_id?: string
+          time_limit_hours?: number | null
+          winner_team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenges_team_a_id_fkey"
+            columns: ["team_a_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_team_b_id_fkey"
+            columns: ["team_b_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_winner_team_id_fkey"
+            columns: ["winner_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          country: string | null
+          created_at: string | null
+          fitness_level: Database["public"]["Enums"]["fitness_level"] | null
+          gender: Database["public"]["Enums"]["gender_type"] | null
+          goal: Database["public"]["Enums"]["fitness_goal"] | null
+          id: string
+          onboarding_completed: boolean | null
+          total_activities: number | null
+          total_fp: number | null
+          total_km: number | null
+          total_steps: number | null
+          updated_at: string | null
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          country?: string | null
+          created_at?: string | null
+          fitness_level?: Database["public"]["Enums"]["fitness_level"] | null
+          gender?: Database["public"]["Enums"]["gender_type"] | null
+          goal?: Database["public"]["Enums"]["fitness_goal"] | null
+          id?: string
+          onboarding_completed?: boolean | null
+          total_activities?: number | null
+          total_fp?: number | null
+          total_km?: number | null
+          total_steps?: number | null
+          updated_at?: string | null
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          country?: string | null
+          created_at?: string | null
+          fitness_level?: Database["public"]["Enums"]["fitness_level"] | null
+          gender?: Database["public"]["Enums"]["gender_type"] | null
+          goal?: Database["public"]["Enums"]["fitness_goal"] | null
+          id?: string
+          onboarding_completed?: boolean | null
+          total_activities?: number | null
+          total_fp?: number | null
+          total_km?: number | null
+          total_steps?: number | null
+          updated_at?: string | null
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          invited_by: string | null
+          status: Database["public"]["Enums"]["member_status"] | null
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          invited_by?: string | null
+          status?: Database["public"]["Enums"]["member_status"] | null
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          invited_by?: string | null
+          status?: Database["public"]["Enums"]["member_status"] | null
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string | null
+          creator_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          creator_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          creator_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      user_activities: {
+        Row: {
+          avg_speed: number | null
+          calories: number | null
+          created_at: string | null
+          distance_km: number
+          duration_seconds: number
+          fp_from_km: number | null
+          fp_from_steps: number | null
+          gps_points: Json | null
+          id: string
+          integrity_status:
+            | Database["public"]["Enums"]["integrity_status"]
+            | null
+          steps: number
+          total_fp: number | null
+          user_id: string
+        }
+        Insert: {
+          avg_speed?: number | null
+          calories?: number | null
+          created_at?: string | null
+          distance_km?: number
+          duration_seconds?: number
+          fp_from_km?: number | null
+          fp_from_steps?: number | null
+          gps_points?: Json | null
+          id?: string
+          integrity_status?:
+            | Database["public"]["Enums"]["integrity_status"]
+            | null
+          steps?: number
+          total_fp?: number | null
+          user_id: string
+        }
+        Update: {
+          avg_speed?: number | null
+          calories?: number | null
+          created_at?: string | null
+          distance_km?: number
+          duration_seconds?: number
+          fp_from_km?: number | null
+          fp_from_steps?: number | null
+          gps_points?: Json | null
+          id?: string
+          integrity_status?:
+            | Database["public"]["Enums"]["integrity_status"]
+            | null
+          steps?: number
+          total_fp?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_team_member_count: { Args: { p_team_id: string }; Returns: number }
     }
     Enums: {
-      [_ in never]: never
+      challenge_status: "pending" | "active" | "completed"
+      fitness_goal: "perdre_poids" | "endurance" | "performance" | "bien_etre"
+      fitness_level: "debutant" | "intermediaire" | "avance" | "pro"
+      gender_type: "homme" | "femme"
+      integrity_status: "clean" | "suspect" | "fraud"
+      member_status: "invited" | "accepted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +420,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      challenge_status: ["pending", "active", "completed"],
+      fitness_goal: ["perdre_poids", "endurance", "performance", "bien_etre"],
+      fitness_level: ["debutant", "intermediaire", "avance", "pro"],
+      gender_type: ["homme", "femme"],
+      integrity_status: ["clean", "suspect", "fraud"],
+      member_status: ["invited", "accepted"],
+    },
   },
 } as const
