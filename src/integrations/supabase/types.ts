@@ -286,6 +286,10 @@ export type Database = {
     }
     Functions: {
       get_team_member_count: { Args: { p_team_id: string }; Returns: number }
+      is_team_member: {
+        Args: { p_team_id: string; p_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       challenge_status: "pending" | "active" | "completed"
