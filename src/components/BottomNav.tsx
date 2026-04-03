@@ -1,4 +1,4 @@
-import { Home, MapPin, Swords, User, Wallet } from "lucide-react";
+import { Home, MapPin, Swords, User, Wallet, Calendar, ShoppingBag } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
