@@ -25,7 +25,7 @@ export default function BottomNav() {
             <button
               key={path}
               onClick={() => navigate(path)}
-              className="relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors"
+              className="relative flex flex-col items-center justify-center gap-0.5 min-w-[3rem] flex-1 py-2 transition-colors"
             >
               {active && (
                 <motion.div
