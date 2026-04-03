@@ -56,6 +56,8 @@ function AppRoutes() {
         <Route path="/user/:id" element={<UserProfile />} />
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/wallet" element={<Wallet />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/market" element={<Market />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
