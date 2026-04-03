@@ -12,6 +12,8 @@ import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import Challenges from "./pages/Challenges";
 import Wallet from "./pages/Wallet";
+import Events from "./pages/Events";
+import Market from "./pages/Market";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
