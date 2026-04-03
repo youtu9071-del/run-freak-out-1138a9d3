@@ -5,8 +5,10 @@ import { motion } from "framer-motion";
 const navItems = [
   { icon: Home, label: "Accueil", path: "/" },
   { icon: MapPin, label: "Activité", path: "/activity" },
-  { icon: Wallet, label: "Portefeuille", path: "/wallet" },
+  { icon: Calendar, label: "Événements", path: "/events" },
+  { icon: ShoppingBag, label: "Market", path: "/market" },
   { icon: Swords, label: "Défis", path: "/challenges" },
+  { icon: Wallet, label: "Portefeuille", path: "/wallet" },
   { icon: User, label: "Profil", path: "/profile" },
 ];
 
