@@ -1,12 +1,14 @@
-import { Home, MapPin, Swords, User, Wallet } from "lucide-react";
+import { Home, MapPin, Swords, User, Wallet, Calendar, ShoppingBag } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const navItems = [
   { icon: Home, label: "Accueil", path: "/" },
   { icon: MapPin, label: "Activité", path: "/activity" },
-  { icon: Wallet, label: "Portefeuille", path: "/wallet" },
+  { icon: Calendar, label: "Événements", path: "/events" },
+  { icon: ShoppingBag, label: "Market", path: "/market" },
   { icon: Swords, label: "Défis", path: "/challenges" },
+  { icon: Wallet, label: "Portefeuille", path: "/wallet" },
   { icon: User, label: "Profil", path: "/profile" },
 ];
 
@@ -16,14 +18,14 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border safe-area-bottom">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-1 overflow-x-auto scrollbar-hide">
         {navItems.map(({ icon: Icon, label, path }) => {
           const active = location.pathname === path;
           return (
             <button
               key={path}
               onClick={() => navigate(path)}
-              className="relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors"
+              className="relative flex flex-col items-center justify-center gap-0.5 min-w-[3rem] flex-1 py-2 transition-colors"
             >
               {active && (
                 <motion.div

@@ -12,6 +12,8 @@ import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import Challenges from "./pages/Challenges";
 import Wallet from "./pages/Wallet";
+import Events from "./pages/Events";
+import Market from "./pages/Market";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
@@ -54,6 +56,8 @@ function AppRoutes() {
         <Route path="/user/:id" element={<UserProfile />} />
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/wallet" element={<Wallet />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/market" element={<Market />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
