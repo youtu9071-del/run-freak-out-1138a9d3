@@ -1,14 +1,32 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Wallet, Zap, Route, Footprints, TrendingUp, Clock } from "lucide-react";
-import { getTotalStats, getActivities, CompletedActivity } from "@/lib/freakPoints";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function WalletScreen() {
-  const stats = getTotalStats();
-  const activities = getActivities();
+  const { profile, user } = useAuth();
+  const [activities, setActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("user_activities")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (data) setActivities(data);
+      });
+  }, [user]);
+
+  const totalFp = Number(profile?.total_fp || 0);
+  const totalKm = Number(profile?.total_km || 0);
+  const totalSteps = Number(profile?.total_steps || 0);
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto">
-      {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <p className="text-sm text-muted-foreground">Mon</p>
         <h1 className="font-display font-black text-2xl text-foreground">Portefeuille 💰</h1>
@@ -22,71 +40,58 @@ export default function WalletScreen() {
         className="rounded-2xl gradient-primary p-6 mb-6 neon-glow-strong relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-primary-foreground/10 -translate-y-8 translate-x-8" />
-        <div className="absolute bottom-0 left-0 w-20 h-20 rounded-full bg-primary-foreground/5 translate-y-6 -translate-x-6" />
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-4">
             <Wallet className="w-5 h-5 text-primary-foreground/80" />
             <p className="text-sm font-medium text-primary-foreground/80">Freak Points (FP)</p>
           </div>
-          <p className="font-display font-black text-5xl text-primary-foreground mb-1">
-            {stats.totalFp.toFixed(1)}
-          </p>
+          <p className="font-display font-black text-5xl text-primary-foreground mb-1">{totalFp.toFixed(1)}</p>
           <p className="text-xs text-primary-foreground/60">Points accumulés</p>
         </div>
       </motion.div>
 
       {/* Conversion Rules */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="rounded-2xl bg-card border border-border p-4 mb-6"
-      >
-        <h3 className="font-display font-bold text-sm mb-3 text-foreground">Conversions</h3>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-2xl bg-card border border-border p-4 mb-6">
+        <h3 className="font-display font-bold text-sm mb-3">Conversions</h3>
         <div className="flex gap-3">
           <div className="flex-1 rounded-xl bg-secondary/50 p-3 text-center">
             <Route className="w-5 h-5 text-primary mx-auto mb-1" />
-            <p className="font-display font-bold text-lg text-foreground">10 km</p>
+            <p className="font-display font-bold text-lg">10 km</p>
             <p className="text-xs text-muted-foreground">= 5 FP</p>
           </div>
           <div className="flex-1 rounded-xl bg-secondary/50 p-3 text-center">
             <Footprints className="w-5 h-5 text-accent mx-auto mb-1" />
-            <p className="font-display font-bold text-lg text-foreground">1 000 pas</p>
+            <p className="font-display font-bold text-lg">1 000 pas</p>
             <p className="text-xs text-muted-foreground">= 2 FP</p>
           </div>
         </div>
       </motion.div>
 
-      {/* Stats breakdown */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 gap-3 mb-6"
-      >
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="rounded-xl bg-card border border-border p-4">
           <Route className="w-4 h-4 text-primary mb-1" />
-          <p className="font-display font-bold text-lg">{stats.totalKm.toFixed(1)} km</p>
-          <p className="text-[10px] text-muted-foreground">→ {((stats.totalKm / 10) * 5).toFixed(1)} FP</p>
+          <p className="font-display font-bold text-lg">{totalKm.toFixed(1)} km</p>
+          <p className="text-[10px] text-muted-foreground">→ {((totalKm / 10) * 5).toFixed(1)} FP</p>
         </div>
         <div className="rounded-xl bg-card border border-border p-4">
           <Footprints className="w-4 h-4 text-accent mb-1" />
-          <p className="font-display font-bold text-lg">{stats.totalSteps.toLocaleString()}</p>
-          <p className="text-[10px] text-muted-foreground">→ {((stats.totalSteps / 1000) * 2).toFixed(1)} FP</p>
+          <p className="font-display font-bold text-lg">{totalSteps.toLocaleString()}</p>
+          <p className="text-[10px] text-muted-foreground">→ {((totalSteps / 1000) * 2).toFixed(1)} FP</p>
         </div>
         <div className="rounded-xl bg-card border border-border p-4">
           <TrendingUp className="w-4 h-4 text-primary mb-1" />
-          <p className="font-display font-bold text-lg">{stats.totalActivities}</p>
+          <p className="font-display font-bold text-lg">{profile?.total_activities || 0}</p>
           <p className="text-[10px] text-muted-foreground">Activités</p>
         </div>
         <div className="rounded-xl bg-card border border-border p-4">
           <Zap className="w-4 h-4 text-accent mb-1" />
-          <p className="font-display font-bold text-lg">{stats.totalCalories.toLocaleString()}</p>
-          <p className="text-[10px] text-muted-foreground">kcal brûlées</p>
+          <p className="font-display font-bold text-lg">{totalFp.toFixed(1)}</p>
+          <p className="text-[10px] text-muted-foreground">FP totaux</p>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Activity History with FP */}
+      {/* Activity History */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
         <h2 className="font-display font-bold text-lg mb-3">Historique FP</h2>
         {activities.length === 0 ? (
@@ -97,23 +102,23 @@ export default function WalletScreen() {
           </div>
         ) : (
           <div className="space-y-2">
-            {activities.slice(0, 10).map((act) => (
+            {activities.map((act) => (
               <div key={act.id} className="rounded-xl bg-card border border-border p-4 flex items-center justify-between">
                 <div>
                   <p className="font-display font-semibold text-sm">
-                    {act.distanceKm.toFixed(2)} km · {act.steps} pas
+                    {Number(act.distance_km).toFixed(2)} km · {act.steps} pas
                   </p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {act.date} · {act.durationMin} min
+                    {new Date(act.created_at).toLocaleDateString("fr-FR")} · {Math.round(act.duration_seconds / 60)} min
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-bold ${act.status === "fraud" ? "text-destructive line-through" : "text-primary"}`}>
-                    +{act.totalFp.toFixed(1)} FP
+                  <p className={`text-sm font-bold ${act.integrity_status === "fraud" ? "text-destructive line-through" : "text-primary"}`}>
+                    +{Number(act.total_fp).toFixed(1)} FP
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {act.fpFromKm.toFixed(1)} km + {act.fpFromSteps.toFixed(1)} pas
+                    {Number(act.fp_from_km).toFixed(1)} km + {Number(act.fp_from_steps).toFixed(1)} pas
                   </p>
                 </div>
               </div>
