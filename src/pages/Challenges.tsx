@@ -1,44 +1,108 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Users, Plus, ChevronRight, Trophy, Clock, UserPlus, Search, Shield } from "lucide-react";
+import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type Tab = "defis" | "equipes";
-type ChallengeView = "list" | "create_team" | "challenge_detail";
-
-interface MockTeam {
-  id: string;
-  name: string;
-  members: string[];
-  size: number;
-}
-
-interface MockChallenge {
-  id: string;
-  teamA: string;
-  teamB: string;
-  distance: number;
-  status: "active" | "completed" | "pending";
-  timeLeft?: string;
-  avgA?: number;
-  avgB?: number;
-  winner?: string;
-}
-
-const MOCK_TEAMS: MockTeam[] = [
-  { id: "1", name: "Les Freaks 🔥", members: ["RunnerX", "SpeedDemon", "FlashMcRun"], size: 3 },
-  { id: "2", name: "Shadow Squad ⚡", members: ["ShadowRunner", "NightRunner"], size: 2 },
-];
-
-const MOCK_CHALLENGES: MockChallenge[] = [
-  { id: "1", teamA: "Les Freaks 🔥", teamB: "Shadow Squad ⚡", distance: 5, status: "active", timeLeft: "18h 42min" },
-  { id: "2", teamA: "Les Freaks 🔥", teamB: "Urban Sprinters", distance: 3, status: "completed", avgA: 20.2, avgB: 21.3, winner: "Les Freaks 🔥" },
-];
+type ChallengeView = "list" | "create_team";
 
 export default function Challenges() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("defis");
   const [view, setView] = useState<ChallengeView>("list");
   const [teamName, setTeamName] = useState("");
   const [teamSize, setTeamSize] = useState(3);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [challenges, setChallenges] = useState<any[]>([]);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchTeams();
+      fetchChallenges();
+    }
+  }, [user]);
+
+  const fetchTeams = async () => {
+    if (!user) return;
+    // Get teams where user is a member
+    const { data: memberships } = await supabase
+      .from("team_members")
+      .select("team_id")
+      .eq("user_id", user.id)
+      .eq("status", "accepted");
+
+    if (!memberships || memberships.length === 0) {
+      setTeams([]);
+      return;
+    }
+
+    const teamIds = memberships.map((m) => m.team_id);
+    const { data: teamsData } = await supabase
+      .from("teams")
+      .select("*")
+      .in("id", teamIds);
+
+    // Get member counts
+    if (teamsData) {
+      const teamsWithMembers = await Promise.all(
+        teamsData.map(async (team) => {
+          const { data: members } = await supabase
+            .from("team_members")
+            .select("user_id, status")
+            .eq("team_id", team.id);
+          return { ...team, members: members || [] };
+        })
+      );
+      setTeams(teamsWithMembers);
+    }
+  };
+
+  const fetchChallenges = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("challenges")
+      .select("*, team_a:teams!challenges_team_a_id_fkey(name), team_b:teams!challenges_team_b_id_fkey(name)")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) setChallenges(data);
+  };
+
+  const handleCreateTeam = async () => {
+    if (!teamName.trim() || !user) return;
+    setCreating(true);
+
+    const { data: team, error } = await supabase
+      .from("teams")
+      .insert({ name: teamName.trim(), creator_id: user.id })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error("Erreur lors de la création");
+      setCreating(false);
+      return;
+    }
+
+    // Add creator as accepted member
+    await supabase.from("team_members").insert({
+      team_id: team.id,
+      user_id: user.id,
+      invited_by: user.id,
+      status: "accepted",
+    });
+
+    toast.success("Équipe créée !");
+    setTeamName("");
+    setView("list");
+    setCreating(false);
+    fetchTeams();
+  };
+
+  const activeChallenges = challenges.filter((c) => c.status === "active");
+  const completedChallenges = challenges.filter((c) => c.status === "completed");
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto">
@@ -52,10 +116,10 @@ export default function Challenges() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
-        {[
+        {([
           { id: "defis" as Tab, label: "Défis", icon: Swords },
           { id: "equipes" as Tab, label: "Équipes", icon: Users },
-        ].map(({ id, label, icon: Icon }) => (
+        ]).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => { setTab(id); setView("list"); }}
@@ -73,18 +137,8 @@ export default function Challenges() {
 
       <AnimatePresence mode="wait">
         {tab === "defis" && (
-          <motion.div
-            key="defis"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            {/* Find opponent */}
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              className="w-full rounded-2xl gradient-accent p-5 flex items-center gap-4 accent-glow"
-            >
+          <motion.div key="defis" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+            <motion.button whileTap={{ scale: 0.97 }} className="w-full rounded-2xl gradient-accent p-5 flex items-center gap-4 accent-glow">
               <Search className="w-8 h-8 text-accent-foreground" />
               <div className="text-left">
                 <p className="font-display font-bold text-lg text-accent-foreground">TROUVER UN ADVERSAIRE</p>
@@ -92,90 +146,62 @@ export default function Challenges() {
               </div>
             </motion.button>
 
-            {/* Active challenges */}
             <h3 className="font-display font-bold text-sm text-muted-foreground mt-6">DÉFIS EN COURS</h3>
-            {MOCK_CHALLENGES.filter(c => c.status === "active").map((ch, i) => (
-              <motion.div
-                key={ch.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="rounded-2xl bg-card border border-primary/20 p-4 neon-glow"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Swords className="w-4 h-4 text-accent" />
-                    <span className="font-display font-bold text-sm">{ch.teamA}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">vs</span>
-                  <span className="font-display font-bold text-sm">{ch.teamB}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Shield className="w-3 h-3" />
-                    <span>{ch.distance} km</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-accent">
-                    <Clock className="w-3 h-3" />
-                    <span>{ch.timeLeft} restant</span>
-                  </div>
-                </div>
-                {/* Progress mock */}
-                <div className="mt-3 space-y-1">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="w-20 truncate">RunnerX</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <div className="h-full rounded-full gradient-primary" style={{ width: "70%" }} />
+            {activeChallenges.length === 0 ? (
+              <div className="rounded-xl bg-card border border-border p-6 text-center">
+                <p className="text-sm text-muted-foreground">Aucun défi en cours</p>
+              </div>
+            ) : (
+              activeChallenges.map((ch) => (
+                <div key={ch.id} className="rounded-2xl bg-card border border-primary/20 p-4 neon-glow">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Swords className="w-4 h-4 text-accent" />
+                      <span className="font-display font-bold text-sm">{ch.team_a?.name}</span>
                     </div>
-                    <span className="text-primary font-bold">✔</span>
+                    <span className="text-xs text-muted-foreground">vs</span>
+                    <span className="font-display font-bold text-sm">{ch.team_b?.name}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="w-20 truncate">SpeedDemon</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <div className="h-full rounded-full gradient-accent" style={{ width: "40%" }} />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Shield className="w-3 h-3" />
+                      <span>{ch.distance_km} km</span>
                     </div>
-                    <span className="text-muted-foreground">en cours...</span>
+                    <div className="flex items-center gap-1 text-xs text-accent">
+                      <Clock className="w-3 h-3" />
+                      <span>{ch.time_limit_hours}h restant</span>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            ))}
+              ))
+            )}
 
-            {/* Completed */}
             <h3 className="font-display font-bold text-sm text-muted-foreground mt-4">TERMINÉS</h3>
-            {MOCK_CHALLENGES.filter(c => c.status === "completed").map((ch, i) => (
-              <motion.div
-                key={ch.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 + i * 0.05 }}
-                className="rounded-2xl bg-card border border-border p-4"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-display font-bold text-sm">{ch.teamA} vs {ch.teamB}</span>
-                  <Trophy className="w-4 h-4 text-primary" />
+            {completedChallenges.length === 0 ? (
+              <div className="rounded-xl bg-card border border-border p-6 text-center">
+                <p className="text-sm text-muted-foreground">Aucun défi terminé</p>
+              </div>
+            ) : (
+              completedChallenges.map((ch) => (
+                <div key={ch.id} className="rounded-2xl bg-card border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-display font-bold text-sm">{ch.team_a?.name} vs {ch.team_b?.name}</span>
+                    <Trophy className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{ch.distance_km} km</span>
+                    {ch.winner_team_id && (
+                      <span className="text-primary font-bold">🏆 Vainqueur déterminé</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">{ch.distance} km</span>
-                  <span className="text-primary font-bold">🏆 {ch.winner}</span>
-                </div>
-                <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
-                  <span>Team A: {ch.avgA?.toFixed(1)} min moy.</span>
-                  <span>Team B: {ch.avgB?.toFixed(1)} min moy.</span>
-                </div>
-              </motion.div>
-            ))}
+              ))
+            )}
           </motion.div>
         )}
 
         {tab === "equipes" && view === "list" && (
-          <motion.div
-            key="equipes"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            {/* Create team */}
+          <motion.div key="equipes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setView("create_team")}
@@ -188,52 +214,40 @@ export default function Challenges() {
               </div>
             </motion.button>
 
-            {/* My teams */}
             <h3 className="font-display font-bold text-sm text-muted-foreground">MES ÉQUIPES</h3>
-            {MOCK_TEAMS.map((team, i) => (
-              <motion.div
-                key={team.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="rounded-2xl bg-card border border-border p-4"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-display font-bold">{team.name}</p>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                    {team.members.length}/{team.size}
-                  </span>
+            {teams.length === 0 ? (
+              <div className="rounded-xl bg-card border border-border p-6 text-center">
+                <p className="text-sm text-muted-foreground">Aucune équipe</p>
+                <p className="text-xs text-muted-foreground mt-1">Crée ta première équipe !</p>
+              </div>
+            ) : (
+              teams.map((team) => (
+                <div key={team.id} className="rounded-2xl bg-card border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-display font-bold">{team.name}</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                      {team.members.filter((m: any) => m.status === "accepted").length} membres
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
+                      <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
+                        👤
+                      </div>
+                    ))}
+                    <button className="w-8 h-8 rounded-full border border-dashed border-muted-foreground flex items-center justify-center">
+                      <UserPlus className="w-3 h-3 text-muted-foreground" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  {team.members.map((m, j) => (
-                    <div
-                      key={j}
-                      className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold"
-                    >
-                      {m[0]}
-                    </div>
-                  ))}
-                  <button className="w-8 h-8 rounded-full border border-dashed border-muted-foreground flex items-center justify-center">
-                    <UserPlus className="w-3 h-3 text-muted-foreground" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+              ))
+            )}
           </motion.div>
         )}
 
         {tab === "equipes" && view === "create_team" && (
-          <motion.div
-            key="create_team"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-4"
-          >
-            <button
-              onClick={() => setView("list")}
-              className="text-sm text-muted-foreground mb-2"
-            >
+          <motion.div key="create_team" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
+            <button onClick={() => setView("list")} className="text-sm text-muted-foreground mb-2">
               ← Retour
             </button>
 
@@ -251,7 +265,7 @@ export default function Challenges() {
 
               <label className="text-xs text-muted-foreground mb-2 block">Taille de l'équipe</label>
               <div className="flex gap-2 mb-6">
-                {[2, 3, 4, 5].map(size => (
+                {[2, 3, 4, 5].map((size) => (
                   <button
                     key={size}
                     onClick={() => setTeamSize(size)}
@@ -268,9 +282,11 @@ export default function Challenges() {
 
               <motion.button
                 whileTap={{ scale: 0.97 }}
-                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow"
+                onClick={handleCreateTeam}
+                disabled={creating || !teamName.trim()}
+                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50"
               >
-                CRÉER L'ÉQUIPE
+                {creating ? "Création..." : "CRÉER L'ÉQUIPE"}
               </motion.button>
             </div>
           </motion.div>

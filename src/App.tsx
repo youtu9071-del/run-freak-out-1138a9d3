@@ -9,6 +9,7 @@ import InstallPrompt from "@/components/InstallPrompt";
 import Dashboard from "./pages/Dashboard";
 import ActivityScreen from "./pages/ActivityScreen";
 import Profile from "./pages/Profile";
+import UserProfile from "./pages/UserProfile";
 import Challenges from "./pages/Challenges";
 import Wallet from "./pages/Wallet";
 import Auth from "./pages/Auth";
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/activity" element={<ActivityScreen />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/user/:id" element={<UserProfile />} />
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/wallet" element={<Wallet />} />
         <Route path="*" element={<NotFound />} />
