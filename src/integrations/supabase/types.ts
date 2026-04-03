@@ -116,6 +116,92 @@ export type Database = {
           },
         ]
       }
+      event_participants: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          distance_completed: number
+          event_id: string
+          fp_earned: number
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          distance_completed?: number
+          event_id: string
+          fp_earned?: number
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          distance_completed?: number
+          event_id?: string
+          fp_earned?: number
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          bonus_description: string | null
+          created_at: string
+          description: string | null
+          distance_km: number
+          end_date: string
+          id: string
+          image_url: string | null
+          max_participants: number | null
+          reward_fp: number
+          start_date: string
+          status: string
+          title: string
+        }
+        Insert: {
+          bonus_description?: string | null
+          created_at?: string
+          description?: string | null
+          distance_km?: number
+          end_date: string
+          id?: string
+          image_url?: string | null
+          max_participants?: number | null
+          reward_fp?: number
+          start_date: string
+          status?: string
+          title: string
+        }
+        Update: {
+          bonus_description?: string | null
+          created_at?: string
+          description?: string | null
+          distance_km?: number
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          max_participants?: number | null
+          reward_fp?: number
+          start_date?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
       followers: {
         Row: {
           created_at: string
@@ -134,6 +220,89 @@ export type Database = {
           follower_id?: string
           following_id?: string
           id?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          created_at: string
+          discount_amount: number
+          fp_used: number
+          id: string
+          product_id: string
+          quantity: number
+          status: string
+          total_price: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number
+          fp_used?: number
+          id?: string
+          product_id: string
+          quantity?: number
+          status?: string
+          total_price: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number
+          fp_used?: number
+          id?: string
+          product_id?: string
+          quantity?: number
+          status?: string
+          total_price?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          fp_discount_rate: number | null
+          id: string
+          image_url: string | null
+          in_stock: boolean | null
+          max_fp_discount: number | null
+          name: string
+          price: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          fp_discount_rate?: number | null
+          id?: string
+          image_url?: string | null
+          in_stock?: boolean | null
+          max_fp_discount?: number | null
+          name: string
+          price: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          fp_discount_rate?: number | null
+          id?: string
+          image_url?: string | null
+          in_stock?: boolean | null
+          max_fp_discount?: number | null
+          name?: string
+          price?: number
         }
         Relationships: []
       }
