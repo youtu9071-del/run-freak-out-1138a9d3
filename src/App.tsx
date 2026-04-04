@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,9 +11,8 @@ import ActivityScreen from "./pages/ActivityScreen";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import Challenges from "./pages/Challenges";
-import Wallet from "./pages/Wallet";
-import Events from "./pages/Events";
-import Market from "./pages/Market";
+import Rewards from "./pages/Rewards";
+import Social from "./pages/Social";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
@@ -32,19 +31,11 @@ function AppRoutes() {
   }
 
   if (!user) {
-    return (
-      <Routes>
-        <Route path="*" element={<Auth />} />
-      </Routes>
-    );
+    return <Routes><Route path="*" element={<Auth />} /></Routes>;
   }
 
   if (profile && !profile.onboarding_completed) {
-    return (
-      <Routes>
-        <Route path="*" element={<Onboarding />} />
-      </Routes>
-    );
+    return <Routes><Route path="*" element={<Onboarding />} /></Routes>;
   }
 
   return (
@@ -55,9 +46,8 @@ function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/user/:id" element={<UserProfile />} />
         <Route path="/challenges" element={<Challenges />} />
-        <Route path="/wallet" element={<Wallet />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/market" element={<Market />} />
+        <Route path="/rewards" element={<Rewards />} />
+        <Route path="/social" element={<Social />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
