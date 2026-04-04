@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Medal, Users, UserPlus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
@@ -10,30 +9,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 export default function Profile() {
   const { profile, user, signOut, refreshProfile } = useAuth();
-  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeLeaderTab, setActiveLeaderTab] = useState("Global");
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [uploading, setUploading] = useState(false);
 
   const totalKm = profile?.total_km || 0;
-  const currentLevel = getLevel(totalKm);
 
   useEffect(() => {
-    fetchLeaderboard();
     if (user) fetchFollowCounts();
   }, [user]);
-
-  const fetchLeaderboard = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("user_id, username, avatar_url, country, total_km, total_fp")
-      .order("total_km", { ascending: false })
-      .limit(10);
-    if (data) setLeaderboard(data);
-  };
 
   const fetchFollowCounts = async () => {
     if (!user) return;
@@ -51,10 +36,8 @@ export default function Profile() {
     setUploading(true);
     const ext = file.name.split(".").pop();
     const path = `${user.id}/avatar.${ext}`;
-
     await supabase.storage.from("avatars").upload(path, file, { upsert: true });
     const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-
     await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("user_id", user.id);
     await refreshProfile();
     setUploading(false);
@@ -86,7 +69,6 @@ export default function Profile() {
           <span>{profile?.country || "FR"}</span>
         </div>
 
-        {/* Follow counts */}
         <div className="flex items-center gap-6 mt-3">
           <div className="text-center">
             <p className="font-display font-bold text-lg">{followerCount}</p>
@@ -103,18 +85,6 @@ export default function Profile() {
         </div>
       </motion.div>
 
-      {/* Logout */}
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        onClick={signOut}
-        className="w-full rounded-xl bg-card border border-destructive/30 p-3 text-center mb-6"
-      >
-        <div className="flex items-center justify-center gap-2">
-          <LogOut className="w-4 h-4 text-destructive" />
-          <p className="font-display font-bold text-xs text-destructive">Déconnexion</p>
-        </div>
-      </motion.button>
-
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <StatCard icon={Route} label="Distance totale" value={Number(totalKm).toFixed(1)} unit="km" accent delay={0.1} />
@@ -123,93 +93,17 @@ export default function Profile() {
         <StatCard icon={Timer} label="Pas totaux" value={(profile?.total_steps || 0).toLocaleString()} delay={0.25} />
       </div>
 
-      {/* Leaderboard Section */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display font-bold text-lg flex items-center gap-2">
-            <Medal className="w-5 h-5 text-primary" />
-            Classement 🏆
-          </h2>
+      {/* Logout */}
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        onClick={signOut}
+        className="w-full rounded-xl bg-card border border-destructive/30 p-3 text-center"
+      >
+        <div className="flex items-center justify-center gap-2">
+          <LogOut className="w-4 h-4 text-destructive" />
+          <p className="font-display font-bold text-xs text-destructive">Déconnexion</p>
         </div>
-
-        {/* Top 3 Podium */}
-        {leaderboard.length >= 3 && (
-          <div className="flex items-end justify-center gap-3 mb-4">
-            {[1, 0, 2].map((idx) => {
-              const entry = leaderboard[idx];
-              if (!entry) return null;
-              const isFirst = idx === 0;
-              const isUser = entry.user_id === user?.id;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => entry.user_id !== user?.id && navigate(`/user/${entry.user_id}`)}
-                  className="flex flex-col items-center"
-                >
-                  <div className={`rounded-full flex items-center justify-center font-display font-black mb-1 overflow-hidden ${
-                    isFirst ? "w-14 h-14 text-lg gradient-primary neon-glow-strong" : "w-10 h-10 text-sm bg-secondary"
-                  } ${isUser ? "ring-2 ring-primary" : ""}`}>
-                    {entry.avatar_url ? (
-                      <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      entry.username[0]
-                    )}
-                  </div>
-                  <p className="font-display font-bold text-[10px]">{entry.username}</p>
-                  <p className="text-[9px] text-muted-foreground">{Number(entry.total_km).toFixed(1)} km</p>
-                  <div className={`mt-1 rounded-t-lg flex items-center justify-center font-display font-black ${
-                    isFirst ? "w-14 h-20 gradient-primary text-primary-foreground text-base" :
-                    idx === 1 ? "w-12 h-14 bg-secondary text-foreground text-sm" :
-                    "w-12 h-10 bg-muted text-muted-foreground text-sm"
-                  }`}>
-                    #{idx + 1}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* List */}
-        <div className="space-y-2">
-          {leaderboard.slice(3, 10).map((entry, i) => {
-            const isUser = entry.user_id === user?.id;
-            const entryLevel = getLevel(Number(entry.total_km));
-            return (
-              <motion.button
-                key={entry.user_id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.35 + i * 0.05 }}
-                onClick={() => !isUser && navigate(`/user/${entry.user_id}`)}
-                className={`w-full rounded-xl p-3 flex items-center gap-3 border text-left ${
-                  isUser ? "border-primary/30 bg-primary/5 neon-glow" : "border-border bg-card"
-                }`}
-              >
-                <span className="font-display font-bold text-xs w-6 text-center text-muted-foreground">#{i + 4}</span>
-                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-display font-bold text-xs overflow-hidden">
-                  {entry.avatar_url ? (
-                    <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    entry.username[0]
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-display font-semibold text-xs truncate">
-                    {entry.username}
-                    {isUser && <span className="text-primary ml-1">(toi)</span>}
-                  </p>
-                  <p className="text-[9px] text-muted-foreground">{entryLevel.name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-display font-bold text-xs">{Number(entry.total_km).toFixed(1)} km</p>
-                  <p className="text-[9px] text-primary">{Number(entry.total_fp).toFixed(1)} FP</p>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
-      </motion.div>
+      </motion.button>
     </div>
   );
 }
