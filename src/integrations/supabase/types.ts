@@ -470,12 +470,40 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_team_member_count: { Args: { p_team_id: string }; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_team_member: {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
@@ -483,6 +511,7 @@ export type Database = {
       update_profile_stats: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
       challenge_status: "pending" | "active" | "completed"
       fitness_goal: "perdre_poids" | "endurance" | "performance" | "bien_etre"
       fitness_level: "debutant" | "intermediaire" | "avance" | "pro"
@@ -616,6 +645,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
       challenge_status: ["pending", "active", "completed"],
       fitness_goal: ["perdre_poids", "endurance", "performance", "bien_etre"],
       fitness_level: ["debutant", "intermediaire", "avance", "pro"],
