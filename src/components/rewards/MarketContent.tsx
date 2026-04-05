@@ -16,10 +16,18 @@ interface Product {
   price: number;
   image_url: string | null;
   category: string | null;
+  currency: string;
   fp_discount_rate: number;
   max_fp_discount: number;
   in_stock: boolean;
 }
+
+const currencySymbols: Record<string, string> = { EUR: "€", USD: "$", FCFA: "FCFA" };
+
+const formatPrice = (price: number, currency: string) => {
+  const sym = currencySymbols[currency] || currency;
+  return currency === "FCFA" ? `${price.toLocaleString()} ${sym}` : `${price.toFixed(2)} ${sym}`;
+};
 
 export default function MarketContent() {
   const { user, profile } = useAuth();
@@ -81,7 +89,7 @@ export default function MarketContent() {
                 <CardContent className="p-3 space-y-1">
                   <h3 className="font-bold text-sm text-foreground line-clamp-1">{product.name}</h3>
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-foreground">{product.price.toFixed(2)} €</span>
+                    <span className="font-bold text-foreground">{formatPrice(product.price, product.currency)}</span>
                     <span className="text-[10px] text-primary flex items-center gap-0.5"><Tag className="w-3 h-3" /> -{(product.fp_discount_rate * 100).toFixed(0)}%/FP</span>
                   </div>
                 </CardContent>
@@ -105,7 +113,7 @@ export default function MarketContent() {
               <div className="space-y-2 bg-secondary/50 p-3 rounded-lg">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Prix</span>
-                  <span className="font-bold text-foreground">{selectedProduct.price.toFixed(2)} €</span>
+                  <span className="font-bold text-foreground">{formatPrice(selectedProduct.price, selectedProduct.currency)}</span>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Utiliser des FP (max {Math.min(userFp, selectedProduct.max_fp_discount)})</label>
@@ -116,11 +124,11 @@ export default function MarketContent() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span className="text-primary">Réduction FP</span>
-                      <span className="text-primary font-bold">-{calculateDiscount(selectedProduct, fpToUse).discount.toFixed(2)} €</span>
+                      <span className="text-primary font-bold">-{formatPrice(calculateDiscount(selectedProduct, fpToUse).discount, selectedProduct.currency)}</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold">
                       <span className="text-foreground">Total</span>
-                      <span className="text-foreground">{Math.max(selectedProduct.price - calculateDiscount(selectedProduct, fpToUse).discount, 0).toFixed(2)} €</span>
+                      <span className="text-foreground">{formatPrice(Math.max(selectedProduct.price - calculateDiscount(selectedProduct, fpToUse).discount, 0), selectedProduct.currency)}</span>
                     </div>
                   </div>
                 )}
