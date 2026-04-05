@@ -15,6 +15,7 @@ import Rewards from "./pages/Rewards";
 import Social from "./pages/Social";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
