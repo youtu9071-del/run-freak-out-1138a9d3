@@ -59,7 +59,10 @@ export type Database = {
         Row: {
           created_at: string | null
           distance_km: number
+          end_date: string | null
           id: string
+          max_members: number | null
+          start_date: string | null
           status: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time: number | null
           team_a_id: string
@@ -71,7 +74,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           distance_km?: number
+          end_date?: string | null
           id?: string
+          max_members?: number | null
+          start_date?: string | null
           status?: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time?: number | null
           team_a_id: string
@@ -83,7 +89,10 @@ export type Database = {
         Update: {
           created_at?: string | null
           distance_km?: number
+          end_date?: string | null
           id?: string
+          max_members?: number | null
+          start_date?: string | null
           status?: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time?: number | null
           team_a_id?: string
@@ -271,6 +280,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
+          currency: string
           description: string | null
           fp_discount_rate: number | null
           id: string
@@ -283,6 +293,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string
+          currency?: string
           description?: string | null
           fp_discount_rate?: number | null
           id?: string
@@ -295,6 +306,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string
+          currency?: string
           description?: string | null
           fp_discount_rate?: number | null
           id?: string
