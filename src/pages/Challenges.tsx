@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield } from "lucide-react";
+import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 type Tab = "defis" | "equipes";
 type ChallengeView = "list" | "create_team";
@@ -17,6 +19,7 @@ export default function Challenges() {
   const [teams, setTeams] = useState<any[]>([]);
   const [challenges, setChallenges] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
+  const [joiningChallenge, setJoiningChallenge] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -27,32 +30,15 @@ export default function Challenges() {
 
   const fetchTeams = async () => {
     if (!user) return;
-    // Get teams where user is a member
     const { data: memberships } = await supabase
-      .from("team_members")
-      .select("team_id")
-      .eq("user_id", user.id)
-      .eq("status", "accepted");
-
-    if (!memberships || memberships.length === 0) {
-      setTeams([]);
-      return;
-    }
-
+      .from("team_members").select("team_id").eq("user_id", user.id).eq("status", "accepted");
+    if (!memberships || memberships.length === 0) { setTeams([]); return; }
     const teamIds = memberships.map((m) => m.team_id);
-    const { data: teamsData } = await supabase
-      .from("teams")
-      .select("*")
-      .in("id", teamIds);
-
-    // Get member counts
+    const { data: teamsData } = await supabase.from("teams").select("*").in("id", teamIds);
     if (teamsData) {
       const teamsWithMembers = await Promise.all(
         teamsData.map(async (team) => {
-          const { data: members } = await supabase
-            .from("team_members")
-            .select("user_id, status")
-            .eq("team_id", team.id);
+          const { data: members } = await supabase.from("team_members").select("user_id, status").eq("team_id", team.id);
           return { ...team, members: members || [] };
         })
       );
@@ -64,41 +50,59 @@ export default function Challenges() {
     if (!user) return;
     const { data } = await supabase
       .from("challenges")
-      .select("*, team_a:teams!challenges_team_a_id_fkey(name), team_b:teams!challenges_team_b_id_fkey(name)")
-      .order("created_at", { ascending: false })
-      .limit(20);
+      .select("*, team_a:teams!challenges_team_a_id_fkey(id, name), team_b:teams!challenges_team_b_id_fkey(id, name)")
+      .order("created_at", { ascending: false }).limit(20);
     if (data) setChallenges(data);
   };
 
   const handleCreateTeam = async () => {
     if (!teamName.trim() || !user) return;
     setCreating(true);
+    const { data: team, error } = await supabase.from("teams").insert({ name: teamName.trim(), creator_id: user.id }).select().single();
+    if (error) { toast.error("Erreur lors de la création"); setCreating(false); return; }
+    await supabase.from("team_members").insert({ team_id: team.id, user_id: user.id, invited_by: user.id, status: "accepted" });
+    toast.success("Équipe créée !"); setTeamName(""); setView("list"); setCreating(false); fetchTeams();
+  };
 
-    const { data: team, error } = await supabase
-      .from("teams")
-      .insert({ name: teamName.trim(), creator_id: user.id })
-      .select()
-      .single();
+  const handleJoinChallenge = async (challenge: any) => {
+    if (!user) return;
+    setJoiningChallenge(challenge.id);
 
-    if (error) {
-      toast.error("Erreur lors de la création");
-      setCreating(false);
-      return;
+    // Check if user is already in one of the teams
+    const teamAId = challenge.team_a?.id;
+    const teamBId = challenge.team_b?.id;
+
+    const { data: existingMembership } = await supabase
+      .from("team_members").select("id").eq("user_id", user.id)
+      .in("team_id", [teamAId, teamBId].filter(Boolean));
+
+    if (existingMembership && existingMembership.length > 0) {
+      toast.error("Tu fais déjà partie de ce défi !"); setJoiningChallenge(null); return;
     }
 
-    // Add creator as accepted member
-    await supabase.from("team_members").insert({
-      team_id: team.id,
-      user_id: user.id,
-      invited_by: user.id,
-      status: "accepted",
-    });
+    // Check which team has space
+    const maxMembers = challenge.max_members || 5;
+    for (const teamId of [teamAId, teamBId]) {
+      if (!teamId) continue;
+      const { count } = await supabase
+        .from("team_members").select("id", { count: "exact", head: true })
+        .eq("team_id", teamId).eq("status", "accepted");
+      if ((count || 0) < maxMembers) {
+        const { error } = await supabase.from("team_members").insert({
+          team_id: teamId, user_id: user.id, invited_by: user.id, status: "accepted",
+        });
+        if (error) { toast.error("Erreur pour rejoindre"); } else {
+          toast.success("Tu as rejoint le défi ! 🔥"); fetchChallenges(); fetchTeams();
+        }
+        setJoiningChallenge(null); return;
+      }
+    }
+    toast.error("Plus de place dans ce défi"); setJoiningChallenge(null);
+  };
 
-    toast.success("Équipe créée !");
-    setTeamName("");
-    setView("list");
-    setCreating(false);
-    fetchTeams();
+  const isUserInChallenge = (challenge: any) => {
+    if (!user) return false;
+    return teams.some(t => t.id === challenge.team_a?.id || t.id === challenge.team_b?.id);
   };
 
   const activeChallenges = challenges.filter((c) => c.status === "active");
@@ -106,31 +110,20 @@ export default function Challenges() {
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto">
-      <motion.h1
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="font-display font-black text-2xl mb-4"
-      >
+      <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="font-display font-black text-2xl mb-4">
         Défis ⚔️
       </motion.h1>
 
-      {/* Tabs */}
       <div className="flex gap-2 mb-6">
         {([
           { id: "defis" as Tab, label: "Défis", icon: Swords },
           { id: "equipes" as Tab, label: "Équipes", icon: Users },
         ]).map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => { setTab(id); setView("list"); }}
+          <button key={id} onClick={() => { setTab(id); setView("list"); }}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-              tab === id
-                ? "gradient-primary text-primary-foreground neon-glow"
-                : "bg-secondary text-secondary-foreground"
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
+              tab === id ? "gradient-primary text-primary-foreground neon-glow" : "bg-secondary text-secondary-foreground"
+            }`}>
+            <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
       </div>
@@ -153,8 +146,8 @@ export default function Challenges() {
               </div>
             ) : (
               activeChallenges.map((ch) => (
-                <div key={ch.id} className="rounded-2xl bg-card border border-primary/20 p-4 neon-glow">
-                  <div className="flex items-center justify-between mb-3">
+                <div key={ch.id} className="rounded-2xl bg-card border border-primary/20 p-4 neon-glow space-y-3">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Swords className="w-4 h-4 text-accent" />
                       <span className="font-display font-bold text-sm">{ch.team_a?.name}</span>
@@ -162,16 +155,35 @@ export default function Challenges() {
                     <span className="text-xs text-muted-foreground">vs</span>
                     <span className="font-display font-bold text-sm">{ch.team_b?.name}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Shield className="w-3 h-3" />
-                      <span>{ch.distance_km} km</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Shield className="w-3 h-3" /> <span>{ch.distance_km} km</span>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-accent">
-                      <Clock className="w-3 h-3" />
-                      <span>{ch.time_limit_hours}h restant</span>
+                    <div className="flex items-center gap-1 text-accent">
+                      <Clock className="w-3 h-3" /> <span>{ch.time_limit_hours}h restant</span>
                     </div>
                   </div>
+                  {/* Date display */}
+                  {(ch.start_date || ch.end_date) && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
+                      <Calendar className="w-3 h-3" />
+                      <span>
+                        {ch.start_date && format(new Date(ch.start_date), "dd MMM", { locale: fr })}
+                        {ch.end_date && ` → ${format(new Date(ch.end_date), "dd MMM yyyy", { locale: fr })}`}
+                      </span>
+                    </div>
+                  )}
+                  {/* Join button */}
+                  {!isUserInChallenge(ch) && (
+                    <button
+                      onClick={() => handleJoinChallenge(ch)}
+                      disabled={joiningChallenge === ch.id}
+                      className="w-full rounded-xl bg-primary/10 border border-primary/30 py-2 text-sm font-bold text-primary hover:bg-primary/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      {joiningChallenge === ch.id ? "Rejoindre..." : "Rejoindre ce défi"}
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -190,9 +202,7 @@ export default function Challenges() {
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">{ch.distance_km} km</span>
-                    {ch.winner_team_id && (
-                      <span className="text-primary font-bold">🏆 Vainqueur déterminé</span>
-                    )}
+                    {ch.winner_team_id && <span className="text-primary font-bold">🏆 Vainqueur déterminé</span>}
                   </div>
                 </div>
               ))
@@ -202,11 +212,8 @@ export default function Challenges() {
 
         {tab === "equipes" && view === "list" && (
           <motion.div key="equipes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setView("create_team")}
-              className="w-full rounded-2xl gradient-primary p-5 flex items-center gap-4 neon-glow-strong"
-            >
+            <motion.button whileTap={{ scale: 0.97 }} onClick={() => setView("create_team")}
+              className="w-full rounded-2xl gradient-primary p-5 flex items-center gap-4 neon-glow-strong">
               <Plus className="w-8 h-8 text-primary-foreground" />
               <div className="text-left">
                 <p className="font-display font-bold text-lg text-primary-foreground">CRÉER UNE ÉQUIPE</p>
@@ -231,9 +238,7 @@ export default function Challenges() {
                   </div>
                   <div className="flex gap-1">
                     {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
-                      <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
-                        👤
-                      </div>
+                      <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">👤</div>
                     ))}
                     <button className="w-8 h-8 rounded-full border border-dashed border-muted-foreground flex items-center justify-center">
                       <UserPlus className="w-3 h-3 text-muted-foreground" />
@@ -247,45 +252,23 @@ export default function Challenges() {
 
         {tab === "equipes" && view === "create_team" && (
           <motion.div key="create_team" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
-            <button onClick={() => setView("list")} className="text-sm text-muted-foreground mb-2">
-              ← Retour
-            </button>
-
+            <button onClick={() => setView("list")} className="text-sm text-muted-foreground mb-2">← Retour</button>
             <div className="rounded-2xl bg-card border border-border p-6">
               <h2 className="font-display font-bold text-xl mb-4">Nouvelle équipe</h2>
-
               <label className="text-xs text-muted-foreground mb-1 block">Nom de l'équipe</label>
-              <input
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Ex: Les Freaks 🔥"
-                className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground mb-4 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-
+              <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ex: Les Freaks 🔥"
+                className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground mb-4 focus:outline-none focus:ring-2 focus:ring-primary" />
               <label className="text-xs text-muted-foreground mb-2 block">Taille de l'équipe</label>
               <div className="flex gap-2 mb-6">
                 {[2, 3, 4, 5].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setTeamSize(size)}
+                  <button key={size} onClick={() => setTeamSize(size)}
                     className={`flex-1 py-3 rounded-xl font-display font-bold text-lg transition-all ${
-                      teamSize === size
-                        ? "gradient-primary text-primary-foreground neon-glow"
-                        : "bg-secondary text-secondary-foreground"
-                    }`}
-                  >
-                    {size}v{size}
-                  </button>
+                      teamSize === size ? "gradient-primary text-primary-foreground neon-glow" : "bg-secondary text-secondary-foreground"
+                    }`}>{size}v{size}</button>
                 ))}
               </div>
-
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={handleCreateTeam}
-                disabled={creating || !teamName.trim()}
-                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50"
-              >
+              <motion.button whileTap={{ scale: 0.97 }} onClick={handleCreateTeam} disabled={creating || !teamName.trim()}
+                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50">
                 {creating ? "Création..." : "CRÉER L'ÉQUIPE"}
               </motion.button>
             </div>
