@@ -42,6 +42,7 @@ function AppRoutes() {
   return (
     <>
       <Routes>
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/activity" element={<ActivityScreen />} />
         <Route path="/profile" element={<Profile />} />
