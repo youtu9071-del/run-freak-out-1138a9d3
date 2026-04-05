@@ -15,6 +15,8 @@ export default function Profile() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const { isAdmin } = useAdmin();
+  const navigate = useNavigate();
 
   const totalKm = profile?.total_km || 0;
 
