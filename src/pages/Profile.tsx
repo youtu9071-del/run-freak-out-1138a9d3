@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut } from "lucide-react";
+import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const { profile, user, signOut, refreshProfile } = useAuth();
@@ -13,6 +15,8 @@ export default function Profile() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const { isAdmin } = useAdmin();
+  const navigate = useNavigate();
 
   const totalKm = profile?.total_km || 0;
 
@@ -92,6 +96,20 @@ export default function Profile() {
         <StatCard icon={Flame} label="Freak Points" value={Number(profile?.total_fp || 0).toFixed(1)} unit="FP" delay={0.2} />
         <StatCard icon={Timer} label="Pas totaux" value={(profile?.total_steps || 0).toLocaleString()} delay={0.25} />
       </div>
+
+      {/* Admin Link */}
+      {isAdmin && (
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate("/admin")}
+          className="w-full rounded-xl bg-primary/10 border border-primary/30 p-3 text-center mb-3"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <Shield className="w-4 h-4 text-primary" />
+            <p className="font-display font-bold text-xs text-primary">Panel Admin</p>
+          </div>
+        </motion.button>
+      )}
 
       {/* Logout */}
       <motion.button
