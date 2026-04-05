@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut } from "lucide-react";
+import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const { profile, user, signOut, refreshProfile } = useAuth();
