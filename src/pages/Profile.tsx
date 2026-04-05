@@ -97,6 +97,20 @@ export default function Profile() {
         <StatCard icon={Timer} label="Pas totaux" value={(profile?.total_steps || 0).toLocaleString()} delay={0.25} />
       </div>
 
+      {/* Admin Link */}
+      {isAdmin && (
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate("/admin")}
+          className="w-full rounded-xl bg-primary/10 border border-primary/30 p-3 text-center mb-3"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <Shield className="w-4 h-4 text-primary" />
+            <p className="font-display font-bold text-xs text-primary">Panel Admin</p>
+          </div>
+        </motion.button>
+      )}
+
       {/* Logout */}
       <motion.button
         whileTap={{ scale: 0.95 }}
