@@ -8,6 +8,7 @@ import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
+import ChallengeInvites from "@/components/ChallengeInvites";
 
 export default function Profile() {
   const { profile, user, signOut, refreshProfile } = useAuth();
@@ -88,6 +89,9 @@ export default function Profile() {
           <LevelBadge totalKm={totalKm} size="lg" />
         </div>
       </motion.div>
+
+      {/* Challenge Invites */}
+      <ChallengeInvites />
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">

@@ -7,6 +7,8 @@ import { getLevel } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function UserProfile() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +20,9 @@ export default function UserProfile() {
   const [followingCount, setFollowingCount] = useState(0);
   const [rank, setRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [challengeOpen, setChallengeOpen] = useState(false);
+  const [challengeDistance, setChallengeDistance] = useState(5);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -144,7 +149,7 @@ export default function UserProfile() {
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate("/challenges")}
+              onClick={() => setChallengeOpen(true)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-accent text-accent-foreground font-display font-bold text-sm accent-glow"
             >
               <Swords className="w-4 h-4" />
@@ -161,6 +166,62 @@ export default function UserProfile() {
         <StatCard icon={Flame} label="Freak Points" value={Number(profile.total_fp || 0).toFixed(1)} unit="FP" delay={0.2} />
         <StatCard icon={Timer} label="Pas totaux" value={(profile.total_steps || 0).toLocaleString()} delay={0.25} />
       </div>
+
+      {/* Challenge Dialog */}
+      <Dialog open={challengeOpen} onOpenChange={setChallengeOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Swords className="w-5 h-5 text-accent" /> Défier {profile.username}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Envoie un défi 1v1 ! L'adversaire a 3 jours pour répondre.
+            </p>
+            <div>
+              <label className="text-xs text-muted-foreground mb-2 block">Distance du défi</label>
+              <div className="flex gap-2">
+                {[3, 5, 10, 15].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setChallengeDistance(d)}
+                    className={`flex-1 py-3 rounded-xl font-display font-bold text-sm transition-all ${
+                      challengeDistance === d
+                        ? "gradient-accent text-accent-foreground accent-glow"
+                        : "bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {d} km
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              disabled={sending}
+              onClick={async () => {
+                if (!user || !id) return;
+                setSending(true);
+                const { error } = await supabase.from("challenge_invites").insert({
+                  challenger_id: user.id,
+                  challenged_id: id,
+                  distance_km: challengeDistance,
+                });
+                if (error) {
+                  toast.error("Erreur lors de l'envoi du défi");
+                } else {
+                  toast.success("Défi envoyé ! ⚔️");
+                  setChallengeOpen(false);
+                }
+                setSending(false);
+              }}
+              className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50"
+            >
+              {sending ? "Envoi..." : "ENVOYER LE DÉFI"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

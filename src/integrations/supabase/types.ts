@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      challenge_invites: {
+        Row: {
+          challenged_id: string
+          challenger_id: string
+          created_at: string
+          distance_km: number
+          expires_at: string
+          id: string
+          responded_at: string | null
+          status: Database["public"]["Enums"]["challenge_invite_status"]
+        }
+        Insert: {
+          challenged_id: string
+          challenger_id: string
+          created_at?: string
+          distance_km?: number
+          expires_at?: string
+          id?: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["challenge_invite_status"]
+        }
+        Update: {
+          challenged_id?: string
+          challenger_id?: string
+          created_at?: string
+          distance_km?: number
+          expires_at?: string
+          id?: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["challenge_invite_status"]
+        }
+        Relationships: []
+      }
       challenge_results: {
         Row: {
           challenge_id: string
@@ -524,6 +557,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      challenge_invite_status: "pending" | "accepted" | "refused" | "expired"
       challenge_status: "pending" | "active" | "completed"
       fitness_goal: "perdre_poids" | "endurance" | "performance" | "bien_etre"
       fitness_level: "debutant" | "intermediaire" | "avance" | "pro"
@@ -658,6 +692,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      challenge_invite_status: ["pending", "accepted", "refused", "expired"],
       challenge_status: ["pending", "active", "completed"],
       fitness_goal: ["perdre_poids", "endurance", "performance", "bien_etre"],
       fitness_level: ["debutant", "intermediaire", "avance", "pro"],
