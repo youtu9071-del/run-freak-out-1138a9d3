@@ -405,6 +405,48 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_qrcodes: {
+        Row: {
+          created_at: string
+          discount_amount: number
+          fp_used: number
+          id: string
+          product_id: string
+          qr_data: string
+          scanned_by: string | null
+          status: string
+          total_price: number
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number
+          fp_used?: number
+          id?: string
+          product_id: string
+          qr_data: string
+          scanned_by?: string | null
+          status?: string
+          total_price?: number
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number
+          fp_used?: number
+          id?: string
+          product_id?: string
+          qr_data?: string
+          scanned_by?: string | null
+          status?: string
+          total_price?: number
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string | null

@@ -7,6 +7,17 @@ import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeSessi
 import { calculateFP, saveActivity } from "@/lib/freakPoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MapContainer, TileLayer, Polyline, Circle, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Component to recenter map on user position
+function MapUpdater({ position }: { position: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.setView(position, map.getZoom(), { animate: true });
+  }, [position, map]);
+  return null;
+}
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
@@ -22,11 +33,9 @@ export default function ActivityScreen() {
   const [integrity, setIntegrity] = useState<SessionIntegrity | null>(null);
   const [liveAlerts, setLiveAlerts] = useState<CheatAlert[]>([]);
   const [savedFp, setSavedFp] = useState<number | null>(null);
-  const [dotPosition, setDotPosition] = useState({ x: 50, y: 50 });
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
-  const originRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // ─── Pedometer ───
   useEffect(() => {
@@ -96,20 +105,6 @@ export default function ActivityScreen() {
         };
 
         if (pos.coords.accuracy > 50) return;
-
-        // Set origin for dot positioning
-        if (!originRef.current) {
-          originRef.current = { lat: point.lat, lng: point.lng };
-        }
-
-        // Calculate dot position relative to origin (scale: ~200m viewport)
-        const dlat = (point.lat - originRef.current.lat) * 111000; // meters
-        const dlng = (point.lng - originRef.current.lng) * 111000 * Math.cos(point.lat * Math.PI / 180);
-        const scale = 0.25; // pixels per meter
-        setDotPosition({
-          x: Math.max(5, Math.min(95, 50 + dlng * scale)),
-          y: Math.max(5, Math.min(95, 50 - dlat * scale)),
-        });
 
         if (lastPointRef.current) {
           const d = haversineDistance(lastPointRef.current, point);
@@ -239,19 +234,37 @@ export default function ActivityScreen() {
 
   return (
     <div className="min-h-screen pb-24 flex flex-col max-w-lg mx-auto">
-      {/* Map area */}
-      <div className="relative h-[45vh] bg-muted/30 flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/90" />
-        <div className="absolute inset-0 opacity-10">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div key={`h${i}`} className="absolute border-t border-foreground/20 w-full" style={{ top: `${i * 5}%` }} />
-          ))}
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div key={`v${i}`} className="absolute border-l border-foreground/20 h-full" style={{ left: `${i * 5}%` }} />
-          ))}
-        </div>
+      {/* Map area with Leaflet */}
+      <div className="relative h-[45vh] overflow-hidden">
+        <MapContainer
+          center={gpsPoints.length > 0 ? [gpsPoints[gpsPoints.length - 1].lat, gpsPoints[gpsPoints.length - 1].lng] : [48.8566, 2.3522]}
+          zoom={16}
+          zoomControl={false}
+          attributionControl={false}
+          className="w-full h-full z-0"
+          style={{ background: "hsl(var(--muted))" }}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapUpdater position={gpsPoints.length > 0 ? [gpsPoints[gpsPoints.length - 1].lat, gpsPoints[gpsPoints.length - 1].lng] : null} />
+          {/* Polyline trace */}
+          {gpsPoints.length >= 2 && (
+            <Polyline
+              positions={gpsPoints.map((p) => [p.lat, p.lng] as [number, number])}
+              pathOptions={{ color: "hsl(142, 71%, 45%)", weight: 4, opacity: 0.9 }}
+            />
+          )}
+          {/* Current position dot */}
+          {gpsPoints.length > 0 && (
+            <Circle
+              center={[gpsPoints[gpsPoints.length - 1].lat, gpsPoints[gpsPoints.length - 1].lng]}
+              radius={8}
+              pathOptions={{ color: "hsl(142, 71%, 45%)", fillColor: "hsl(142, 71%, 45%)", fillOpacity: 1, weight: 3 }}
+            />
+          )}
+        </MapContainer>
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent z-10" />
 
-        {/* GPS Status + Steps */}
+        {/* GPS Status */}
         <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold glass ${
             gpsStatus === "active" ? "text-primary" :
@@ -266,33 +279,13 @@ export default function ActivityScreen() {
           </div>
         </div>
 
-        {/* Steps badge - always visible during run */}
+        {/* Steps badge */}
         {(state === "running" || state === "paused") && (
           <div className="absolute top-4 left-14 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold glass text-accent">
             <Footprints className="w-3.5 h-3.5" />
             <span className="font-display">{steps}</span>
             <span className="text-muted-foreground">pas</span>
           </div>
-        )}
-
-        {/* Moving GPS dot */}
-        {state === "running" && (
-          <motion.div
-            animate={{
-              left: `${dotPosition.x}%`,
-              top: `${dotPosition.y}%`,
-              scale: [1, 1.5, 1],
-              opacity: [0.5, 1, 0.5],
-            }}
-            transition={{
-              left: { type: "spring", stiffness: 100, damping: 20 },
-              top: { type: "spring", stiffness: 100, damping: 20 },
-              scale: { repeat: Infinity, duration: 2 },
-              opacity: { repeat: Infinity, duration: 2 },
-            }}
-            className="absolute w-4 h-4 rounded-full bg-primary neon-glow-strong z-10"
-            style={{ transform: "translate(-50%, -50%)" }}
-          />
         )}
 
         <button
