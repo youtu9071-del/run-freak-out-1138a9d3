@@ -7,6 +7,8 @@ import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeSessi
 import { calculateFP, saveActivity } from "@/lib/freakPoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MapContainer, TileLayer, Polyline, Circle, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
