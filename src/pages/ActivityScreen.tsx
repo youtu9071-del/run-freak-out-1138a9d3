@@ -10,6 +10,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { MapContainer, TileLayer, Polyline, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
+// Component to recenter map on user position
+function MapUpdater({ position }: { position: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.setView(position, map.getZoom(), { animate: true });
+  }, [position, map]);
+  return null;
+}
+
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
 export default function ActivityScreen() {
