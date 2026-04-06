@@ -33,11 +33,9 @@ export default function ActivityScreen() {
   const [integrity, setIntegrity] = useState<SessionIntegrity | null>(null);
   const [liveAlerts, setLiveAlerts] = useState<CheatAlert[]>([]);
   const [savedFp, setSavedFp] = useState<number | null>(null);
-  const [dotPosition, setDotPosition] = useState({ x: 50, y: 50 });
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
-  const originRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // ─── Pedometer ───
   useEffect(() => {
