@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn } from "lucide-react";
+import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,6 +20,15 @@ export default function Challenges() {
   const [challenges, setChallenges] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
   const [joiningChallenge, setJoiningChallenge] = useState<string | null>(null);
+
+  // New: date + member invitation
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
+  const [followers, setFollowers] = useState<any[]>([]);
+  const [showFollowers, setShowFollowers] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -55,32 +64,87 @@ export default function Challenges() {
     if (data) setChallenges(data);
   };
 
+  const fetchFollowers = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("followers").select("follower_id").eq("following_id", user.id);
+    if (data && data.length > 0) {
+      const ids = data.map(f => f.follower_id);
+      const { data: profiles } = await supabase
+        .from("profiles").select("user_id, username, avatar_url").in("user_id", ids);
+      setFollowers(profiles || []);
+    }
+  };
+
+  const searchUsers = async (query: string) => {
+    setInviteSearch(query);
+    if (query.length < 2) { setSearchResults([]); return; }
+    const { data } = await supabase
+      .from("profiles").select("user_id, username, avatar_url")
+      .ilike("username", `%${query}%`).neq("user_id", user?.id || "").limit(10);
+    setSearchResults(data || []);
+  };
+
+  const toggleMember = (profile: any) => {
+    setSelectedMembers(prev => {
+      const exists = prev.find(m => m.user_id === profile.user_id);
+      if (exists) return prev.filter(m => m.user_id !== profile.user_id);
+      if (prev.length >= teamSize - 1) { toast.error(`Max ${teamSize - 1} membres en plus`); return prev; }
+      return [...prev, profile];
+    });
+  };
+
   const handleCreateTeam = async () => {
     if (!teamName.trim() || !user) return;
     setCreating(true);
     const { data: team, error } = await supabase.from("teams").insert({ name: teamName.trim(), creator_id: user.id }).select().single();
     if (error) { toast.error("Erreur lors de la création"); setCreating(false); return; }
+
+    // Add creator
     await supabase.from("team_members").insert({ team_id: team.id, user_id: user.id, invited_by: user.id, status: "accepted" });
-    toast.success("Équipe créée !"); setTeamName(""); setView("list"); setCreating(false); fetchTeams();
+
+    // Invite selected members
+    for (const member of selectedMembers) {
+      await supabase.from("team_members").insert({
+        team_id: team.id, user_id: member.user_id, invited_by: user.id, status: "invited",
+      });
+    }
+
+    // If dates are set, create a challenge directly
+    if (startDate && endDate) {
+      // Create a placeholder opponent team
+      const { data: opponentTeam } = await supabase
+        .from("teams").insert({ name: `Adversaire de ${teamName.trim()}`, creator_id: user.id }).select().single();
+      if (opponentTeam) {
+        await supabase.from("challenges").insert({
+          team_a_id: team.id,
+          team_b_id: opponentTeam.id,
+          distance_km: 5,
+          status: "active" as any,
+          start_date: new Date(startDate).toISOString(),
+          end_date: new Date(endDate).toISOString(),
+          max_members: teamSize,
+        });
+      }
+    }
+
+    toast.success("Équipe créée ! 🔥");
+    setTeamName(""); setView("list"); setCreating(false);
+    setSelectedMembers([]); setStartDate(""); setEndDate("");
+    fetchTeams(); fetchChallenges();
   };
 
   const handleJoinChallenge = async (challenge: any) => {
     if (!user) return;
     setJoiningChallenge(challenge.id);
-
-    // Check if user is already in one of the teams
     const teamAId = challenge.team_a?.id;
     const teamBId = challenge.team_b?.id;
-
     const { data: existingMembership } = await supabase
       .from("team_members").select("id").eq("user_id", user.id)
       .in("team_id", [teamAId, teamBId].filter(Boolean));
-
     if (existingMembership && existingMembership.length > 0) {
       toast.error("Tu fais déjà partie de ce défi !"); setJoiningChallenge(null); return;
     }
-
-    // Check which team has space
     const maxMembers = challenge.max_members || 5;
     for (const teamId of [teamAId, teamBId]) {
       if (!teamId) continue;
@@ -163,7 +227,6 @@ export default function Challenges() {
                       <Clock className="w-3 h-3" /> <span>{ch.time_limit_hours}h restant</span>
                     </div>
                   </div>
-                  {/* Date display */}
                   {(ch.start_date || ch.end_date) && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
                       <Calendar className="w-3 h-3" />
@@ -173,7 +236,6 @@ export default function Challenges() {
                       </span>
                     </div>
                   )}
-                  {/* Join button */}
                   {!isUserInChallenge(ch) && (
                     <button
                       onClick={() => handleJoinChallenge(ch)}
@@ -212,7 +274,7 @@ export default function Challenges() {
 
         {tab === "equipes" && view === "list" && (
           <motion.div key="equipes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-            <motion.button whileTap={{ scale: 0.97 }} onClick={() => setView("create_team")}
+            <motion.button whileTap={{ scale: 0.97 }} onClick={() => { setView("create_team"); fetchFollowers(); }}
               className="w-full rounded-2xl gradient-primary p-5 flex items-center gap-4 neon-glow-strong">
               <Plus className="w-8 h-8 text-primary-foreground" />
               <div className="text-left">
@@ -240,9 +302,6 @@ export default function Challenges() {
                     {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
                       <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">👤</div>
                     ))}
-                    <button className="w-8 h-8 rounded-full border border-dashed border-muted-foreground flex items-center justify-center">
-                      <UserPlus className="w-3 h-3 text-muted-foreground" />
-                    </button>
                   </div>
                 </div>
               ))
@@ -253,20 +312,102 @@ export default function Challenges() {
         {tab === "equipes" && view === "create_team" && (
           <motion.div key="create_team" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
             <button onClick={() => setView("list")} className="text-sm text-muted-foreground mb-2">← Retour</button>
-            <div className="rounded-2xl bg-card border border-border p-6">
-              <h2 className="font-display font-bold text-xl mb-4">Nouvelle équipe</h2>
-              <label className="text-xs text-muted-foreground mb-1 block">Nom de l'équipe</label>
-              <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ex: Les Freaks 🔥"
-                className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground mb-4 focus:outline-none focus:ring-2 focus:ring-primary" />
-              <label className="text-xs text-muted-foreground mb-2 block">Taille de l'équipe</label>
-              <div className="flex gap-2 mb-6">
-                {[2, 3, 4, 5].map((size) => (
-                  <button key={size} onClick={() => setTeamSize(size)}
-                    className={`flex-1 py-3 rounded-xl font-display font-bold text-lg transition-all ${
-                      teamSize === size ? "gradient-primary text-primary-foreground neon-glow" : "bg-secondary text-secondary-foreground"
-                    }`}>{size}v{size}</button>
-                ))}
+            <div className="rounded-2xl bg-card border border-border p-6 space-y-4">
+              <h2 className="font-display font-bold text-xl">Nouvelle équipe</h2>
+
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Nom de l'équipe</label>
+                <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ex: Les Freaks 🔥"
+                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Taille de l'équipe</label>
+                <div className="flex gap-2">
+                  {[2, 3, 4, 5].map((size) => (
+                    <button key={size} onClick={() => setTeamSize(size)}
+                      className={`flex-1 py-3 rounded-xl font-display font-bold text-lg transition-all ${
+                        teamSize === size ? "gradient-primary text-primary-foreground neon-glow" : "bg-secondary text-secondary-foreground"
+                      }`}>{size}v{size}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Date de début</label>
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full rounded-xl bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Date de fin</label>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full rounded-xl bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              </div>
+
+              {/* Invite Members */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Inviter des membres</label>
+                <input type="text" value={inviteSearch} onChange={(e) => searchUsers(e.target.value)}
+                  placeholder="Rechercher un utilisateur..."
+                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary mb-2" />
+
+                {/* Search results */}
+                {searchResults.length > 0 && (
+                  <div className="rounded-xl bg-secondary/50 border border-border p-2 space-y-1 mb-2 max-h-32 overflow-y-auto">
+                    {searchResults.map((p) => (
+                      <button key={p.user_id} onClick={() => toggleMember(p)}
+                        className={`w-full flex items-center gap-2 p-2 rounded-lg text-left text-sm transition-colors ${
+                          selectedMembers.find(m => m.user_id === p.user_id) ? "bg-primary/20" : "hover:bg-secondary"
+                        }`}>
+                        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                          {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : p.username[0]}
+                        </div>
+                        <span className="flex-1">{p.username}</span>
+                        {selectedMembers.find(m => m.user_id === p.user_id) && <Check className="w-4 h-4 text-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Followers toggle */}
+                <button onClick={() => setShowFollowers(!showFollowers)}
+                  className="text-xs text-primary font-bold flex items-center gap-1">
+                  <Users className="w-3 h-3" /> {showFollowers ? "Masquer" : "Voir"} mes abonnés ({followers.length})
+                </button>
+
+                {showFollowers && followers.length > 0 && (
+                  <div className="rounded-xl bg-secondary/50 border border-border p-2 space-y-1 mt-2 max-h-32 overflow-y-auto">
+                    {followers.map((p) => (
+                      <button key={p.user_id} onClick={() => toggleMember(p)}
+                        className={`w-full flex items-center gap-2 p-2 rounded-lg text-left text-sm transition-colors ${
+                          selectedMembers.find(m => m.user_id === p.user_id) ? "bg-primary/20" : "hover:bg-secondary"
+                        }`}>
+                        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                          {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : p.username[0]}
+                        </div>
+                        <span className="flex-1">{p.username}</span>
+                        {selectedMembers.find(m => m.user_id === p.user_id) && <Check className="w-4 h-4 text-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Selected members */}
+                {selectedMembers.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {selectedMembers.map((m) => (
+                      <span key={m.user_id} className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-xs text-primary font-bold">
+                        {m.username}
+                        <button onClick={() => toggleMember(m)}><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <motion.button whileTap={{ scale: 0.97 }} onClick={handleCreateTeam} disabled={creating || !teamName.trim()}
                 className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50">
                 {creating ? "Création..." : "CRÉER L'ÉQUIPE"}
