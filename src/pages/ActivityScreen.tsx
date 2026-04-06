@@ -106,20 +106,6 @@ export default function ActivityScreen() {
 
         if (pos.coords.accuracy > 50) return;
 
-        // Set origin for dot positioning
-        if (!originRef.current) {
-          originRef.current = { lat: point.lat, lng: point.lng };
-        }
-
-        // Calculate dot position relative to origin (scale: ~200m viewport)
-        const dlat = (point.lat - originRef.current.lat) * 111000; // meters
-        const dlng = (point.lng - originRef.current.lng) * 111000 * Math.cos(point.lat * Math.PI / 180);
-        const scale = 0.25; // pixels per meter
-        setDotPosition({
-          x: Math.max(5, Math.min(95, 50 + dlng * scale)),
-          y: Math.max(5, Math.min(95, 50 - dlat * scale)),
-        });
-
         if (lastPointRef.current) {
           const d = haversineDistance(lastPointRef.current, point);
           if (d > 0.003 && d < 0.5) {
