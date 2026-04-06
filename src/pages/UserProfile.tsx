@@ -7,6 +7,8 @@ import { getLevel } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function UserProfile() {
   const { id } = useParams<{ id: string }>();
