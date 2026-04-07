@@ -7,17 +7,9 @@ import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeSessi
 import { calculateFP, saveActivity } from "@/lib/freakPoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { MapContainer, TileLayer, Polyline, Circle, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import { lazy, Suspense } from "react";
 
-// Component to recenter map on user position
-function MapUpdater({ position }: { position: [number, number] | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (position) map.setView(position, map.getZoom(), { animate: true });
-  }, [position, map]);
-  return null;
-}
+const ActivityMap = lazy(() => import("@/components/ActivityMap"));
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
@@ -236,32 +228,9 @@ export default function ActivityScreen() {
     <div className="min-h-screen pb-24 flex flex-col max-w-lg mx-auto">
       {/* Map area with Leaflet */}
       <div className="relative h-[45vh] overflow-hidden">
-        <MapContainer
-          center={gpsPoints.length > 0 ? [gpsPoints[gpsPoints.length - 1].lat, gpsPoints[gpsPoints.length - 1].lng] : [48.8566, 2.3522]}
-          zoom={16}
-          zoomControl={false}
-          attributionControl={false}
-          className="w-full h-full z-0"
-          style={{ background: "hsl(var(--muted))" }}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapUpdater position={gpsPoints.length > 0 ? [gpsPoints[gpsPoints.length - 1].lat, gpsPoints[gpsPoints.length - 1].lng] : null} />
-          {/* Polyline trace */}
-          {gpsPoints.length >= 2 && (
-            <Polyline
-              positions={gpsPoints.map((p) => [p.lat, p.lng] as [number, number])}
-              pathOptions={{ color: "hsl(142, 71%, 45%)", weight: 4, opacity: 0.9 }}
-            />
-          )}
-          {/* Current position dot */}
-          {gpsPoints.length > 0 && (
-            <Circle
-              center={[gpsPoints[gpsPoints.length - 1].lat, gpsPoints[gpsPoints.length - 1].lng]}
-              radius={8}
-              pathOptions={{ color: "hsl(142, 71%, 45%)", fillColor: "hsl(142, 71%, 45%)", fillOpacity: 1, weight: 3 }}
-            />
-          )}
-        </MapContainer>
+        <Suspense fallback={<div className="w-full h-full bg-muted animate-pulse" />}>
+          <ActivityMap gpsPoints={gpsPoints} />
+        </Suspense>
         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent z-10" />
 
         {/* GPS Status */}
