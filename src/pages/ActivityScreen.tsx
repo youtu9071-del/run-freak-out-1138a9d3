@@ -7,17 +7,9 @@ import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeSessi
 import { calculateFP, saveActivity } from "@/lib/freakPoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { MapContainer, TileLayer, Polyline, Circle, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import { lazy, Suspense } from "react";
 
-// Component to recenter map on user position
-function MapUpdater({ position }: { position: [number, number] | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (position) map.setView(position, map.getZoom(), { animate: true });
-  }, [position, map]);
-  return null;
-}
+const ActivityMap = lazy(() => import("@/components/ActivityMap"));
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
