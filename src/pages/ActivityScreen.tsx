@@ -20,6 +20,7 @@ export default function ActivityScreen() {
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
   const [gpsPoints, setGpsPoints] = useState<GpsPoint[]>([]);
+  const [initialPos, setInitialPos] = useState<{ lat: number; lng: number } | null>(null);
   const [steps, setSteps] = useState(0);
   const [gpsStatus, setGpsStatus] = useState<"waiting" | "active" | "denied" | "unavailable">("waiting");
   const [integrity, setIntegrity] = useState<SessionIntegrity | null>(null);
