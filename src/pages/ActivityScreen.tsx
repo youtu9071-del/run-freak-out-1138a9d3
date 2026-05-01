@@ -247,7 +247,7 @@ export default function ActivityScreen() {
       {/* Map area with Leaflet */}
       <div className="relative h-[45vh] overflow-hidden">
         <Suspense fallback={<div className="w-full h-full bg-muted animate-pulse" />}>
-          <ActivityMap gpsPoints={gpsPoints} />
+          <ActivityMap gpsPoints={gpsPoints} initialPosition={initialPos} />
         </Suspense>
         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent z-10" />
 
