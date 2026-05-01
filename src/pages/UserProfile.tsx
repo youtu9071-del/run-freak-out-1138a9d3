@@ -22,6 +22,11 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeDistance, setChallengeDistance] = useState(5);
+  const [challengeDate, setChallengeDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+  });
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
