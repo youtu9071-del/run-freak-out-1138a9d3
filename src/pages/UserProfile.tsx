@@ -22,6 +22,11 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeDistance, setChallengeDistance] = useState(5);
+  const [challengeDate, setChallengeDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+  });
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -197,6 +202,16 @@ export default function UserProfile() {
                 ))}
               </div>
             </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-2 block">Date du défi</label>
+              <input
+                type="datetime-local"
+                value={challengeDate}
+                min={new Date().toISOString().slice(0, 16)}
+                onChange={(e) => setChallengeDate(e.target.value)}
+                className="w-full rounded-xl bg-secondary border border-border px-3 py-2 text-sm text-foreground"
+              />
+            </div>
             <button
               disabled={sending}
               onClick={async () => {
@@ -206,7 +221,8 @@ export default function UserProfile() {
                   challenger_id: user.id,
                   challenged_id: id,
                   distance_km: challengeDistance,
-                });
+                  scheduled_date: new Date(challengeDate).toISOString(),
+                } as any);
                 if (error) {
                   toast.error("Erreur lors de l'envoi du défi");
                 } else {

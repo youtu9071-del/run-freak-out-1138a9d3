@@ -20,6 +20,7 @@ export default function ActivityScreen() {
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
   const [gpsPoints, setGpsPoints] = useState<GpsPoint[]>([]);
+  const [initialPos, setInitialPos] = useState<{ lat: number; lng: number } | null>(null);
   const [steps, setSteps] = useState(0);
   const [gpsStatus, setGpsStatus] = useState<"waiting" | "active" | "denied" | "unavailable">("waiting");
   const [integrity, setIntegrity] = useState<SessionIntegrity | null>(null);
@@ -78,6 +79,23 @@ export default function ActivityScreen() {
     window.addEventListener("devicemotion", handleMotion);
     return () => window.removeEventListener("devicemotion", handleMotion);
   }, [state]);
+
+  // ─── Initial GPS fix on mount (so map centers on real location, not default) ───
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGpsStatus("unavailable");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setInitialPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+  }, []);
 
   // ─── GPS Tracking with moving dot ───
   const startGps = useCallback(() => {
@@ -229,7 +247,7 @@ export default function ActivityScreen() {
       {/* Map area with Leaflet */}
       <div className="relative h-[45vh] overflow-hidden">
         <Suspense fallback={<div className="w-full h-full bg-muted animate-pulse" />}>
-          <ActivityMap gpsPoints={gpsPoints} />
+          <ActivityMap gpsPoints={gpsPoints} initialPosition={initialPos} />
         </Suspense>
         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent z-10" />
 
