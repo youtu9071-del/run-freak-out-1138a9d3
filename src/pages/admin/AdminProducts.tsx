@@ -77,9 +77,13 @@ export default function AdminProducts() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Supprimer ce produit ? Les QR codes et commandes associés seront aussi supprimés.")) return;
+    // Cleanup dependent rows first to avoid silent FK / RLS rejections
+    await supabase.from("purchase_qrcodes").delete().eq("product_id", id);
+    await supabase.from("orders").delete().eq("product_id", id);
     const { error } = await supabase.from("products").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Supprimé"); load();
+    toast.success("Produit supprimé"); load();
   };
 
   const startEdit = (p: any) => {
