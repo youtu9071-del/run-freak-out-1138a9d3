@@ -80,6 +80,23 @@ export default function ActivityScreen() {
     return () => window.removeEventListener("devicemotion", handleMotion);
   }, [state]);
 
+  // ─── Initial GPS fix on mount (so map centers on real location, not default) ───
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGpsStatus("unavailable");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setInitialPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+  }, []);
+
   // ─── GPS Tracking with moving dot ───
   const startGps = useCallback(() => {
     if (!navigator.geolocation) {
