@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Wallet, Zap, Route, Footprints, TrendingUp, Clock, QrCode, Trash2 } from "lucide-react";
+import { Wallet, Zap, Route, Footprints, TrendingUp, Clock, QrCode, Trash2, Download } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
 
 export default function WalletContent() {
   const { profile, user } = useAuth();
@@ -15,7 +16,9 @@ export default function WalletContent() {
 
   useEffect(() => {
     if (!user) return;
-    fetchData();
+    // Auto-expire old QR codes server-side, then fetch
+    supabase.rpc("expire_old_qrcodes" as any).then(() => fetchData());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchData = async () => {
@@ -35,6 +38,38 @@ export default function WalletContent() {
     toast.success("QR code supprimé");
   };
 
+  const downloadPDF = async (qr: any) => {
+    try {
+      const canvas = document.getElementById(`qr-pdf-${qr.id}`) as HTMLCanvasElement | null;
+      if (!canvas) {
+        toast.error("Erreur génération PDF");
+        return;
+      }
+      const dataUrl = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ unit: "mm", format: "a4" });
+      pdf.setFontSize(20);
+      pdf.text("FREAK OUT - Bon d'achat", 105, 25, { align: "center" });
+      pdf.setFontSize(12);
+      pdf.text(qr.product?.name || "Produit", 105, 40, { align: "center" });
+      pdf.addImage(dataUrl, "PNG", 65, 55, 80, 80);
+      pdf.setFontSize(10);
+      pdf.text(`FP utilisés : ${qr.fp_used}`, 20, 150);
+      pdf.text(`Réduction : ${Number(qr.discount_amount).toFixed(2)}`, 20, 158);
+      pdf.text(`Total : ${Number(qr.total_price).toFixed(2)}`, 20, 166);
+      pdf.text(`Émis le : ${new Date(qr.created_at).toLocaleDateString("fr-FR")}`, 20, 174);
+      if (qr.expires_at) {
+        pdf.text(`Expire le : ${new Date(qr.expires_at).toLocaleDateString("fr-FR")}`, 20, 182);
+      }
+      pdf.text(`Statut : ${qr.status}`, 20, 190);
+      pdf.setFontSize(8);
+      pdf.text("Présentez ce QR code à un administrateur pour récupérer votre produit.", 105, 210, { align: "center" });
+      pdf.save(`qr-${qr.product?.name || "achat"}-${qr.id.slice(0, 8)}.pdf`);
+      toast.success("PDF téléchargé");
+    } catch (e) {
+      toast.error("Erreur téléchargement");
+    }
+  };
+
   const totalFp = Number(profile?.total_fp || 0);
   const totalKm = Number(profile?.total_km || 0);
   const totalSteps = Number(profile?.total_steps || 0);
@@ -45,8 +80,22 @@ export default function WalletContent() {
     return { text: "Expiré", cls: "text-destructive bg-destructive/10" };
   };
 
+  const daysLeft = (expiresAt?: string) => {
+    if (!expiresAt) return null;
+    const ms = new Date(expiresAt).getTime() - Date.now();
+    if (ms <= 0) return 0;
+    return Math.ceil(ms / (1000 * 60 * 60 * 24));
+  };
+
   return (
     <div>
+      {/* Hidden canvases used to generate PDFs */}
+      <div style={{ position: "absolute", left: -9999, top: -9999 }}>
+        {qrCodes.map((qr) => (
+          <QRCodeCanvas key={`hidden-${qr.id}`} id={`qr-pdf-${qr.id}`} value={qr.qr_data} size={400} />
+        ))}
+      </div>
+
       {/* Main FP Card */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="rounded-2xl gradient-primary p-6 mb-6 neon-glow-strong relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-primary-foreground/10 -translate-y-8 translate-x-8" />
@@ -74,18 +123,33 @@ export default function WalletContent() {
         <div className="space-y-2 mb-6">
           {qrCodes.map((qr) => {
             const st = statusLabel(qr.status);
+            const dl = daysLeft(qr.expires_at);
             return (
-              <button key={qr.id} onClick={() => setSelectedQR(qr)}
-                className="w-full rounded-xl bg-card border border-border p-4 flex items-center gap-3 text-left">
-                <QrCode className="w-8 h-8 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-display font-bold text-sm truncate">{qr.product?.name || "Produit"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(qr.created_at).toLocaleDateString("fr-FR")} • {qr.fp_used} FP
-                  </p>
+              <div key={qr.id} className="rounded-xl bg-card border border-border p-4 flex items-center gap-3">
+                <button onClick={() => setSelectedQR(qr)} className="flex-1 flex items-center gap-3 text-left min-w-0">
+                  <QrCode className="w-8 h-8 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display font-bold text-sm truncate">{qr.product?.name || "Produit"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(qr.created_at).toLocaleDateString("fr-FR")} • {qr.fp_used} FP
+                    </p>
+                    {qr.status === "active" && dl !== null && (
+                      <p className="text-[10px] text-accent mt-0.5">
+                        Expire dans {dl} jour{dl > 1 ? "s" : ""}
+                      </p>
+                    )}
+                  </div>
+                </button>
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.text}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); downloadPDF(qr); }}
+                    className="flex items-center gap-1 text-[10px] text-primary font-bold hover:underline"
+                  >
+                    <Download className="w-3 h-3" /> PDF
+                  </button>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.text}</span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -174,8 +238,11 @@ export default function WalletContent() {
               </div>
               <div className="space-y-1 text-sm">
                 <p className="text-muted-foreground">FP utilisés : <span className="font-bold text-foreground">{selectedQR.fp_used}</span></p>
-                <p className="text-muted-foreground">Réduction : <span className="font-bold text-foreground">{selectedQR.discount_amount}</span></p>
+                <p className="text-muted-foreground">Réduction : <span className="font-bold text-foreground">{Number(selectedQR.discount_amount).toFixed(2)}</span></p>
                 <p className="text-muted-foreground">Date : <span className="font-bold text-foreground">{new Date(selectedQR.created_at).toLocaleDateString("fr-FR")}</span></p>
+                {selectedQR.expires_at && (
+                  <p className="text-muted-foreground">Expire le : <span className="font-bold text-foreground">{new Date(selectedQR.expires_at).toLocaleDateString("fr-FR")}</span></p>
+                )}
                 <div className="mt-2">
                   {(() => {
                     const st = statusLabel(selectedQR.status);
@@ -183,12 +250,22 @@ export default function WalletContent() {
                   })()}
                 </div>
               </div>
-              {selectedQR.status === "active" && (
-                <button onClick={() => deleteQR(selectedQR.id)}
-                  className="flex items-center gap-2 mx-auto text-destructive text-xs font-bold">
-                  <Trash2 className="w-3 h-3" /> Supprimer
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={() => downloadPDF(selectedQR)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary text-primary-foreground text-xs font-bold neon-glow"
+                >
+                  <Download className="w-3 h-3" /> Télécharger PDF
                 </button>
-              )}
+                {selectedQR.status === "active" && (
+                  <button
+                    onClick={() => deleteQR(selectedQR.id)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/10 text-destructive text-xs font-bold"
+                  >
+                    <Trash2 className="w-3 h-3" /> Supprimer
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
