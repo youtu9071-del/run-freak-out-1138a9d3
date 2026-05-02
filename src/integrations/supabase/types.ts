@@ -23,6 +23,7 @@ export type Database = {
           expires_at: string
           id: string
           responded_at: string | null
+          scheduled_date: string | null
           status: Database["public"]["Enums"]["challenge_invite_status"]
         }
         Insert: {
@@ -33,6 +34,7 @@ export type Database = {
           expires_at?: string
           id?: string
           responded_at?: string | null
+          scheduled_date?: string | null
           status?: Database["public"]["Enums"]["challenge_invite_status"]
         }
         Update: {
@@ -43,6 +45,7 @@ export type Database = {
           expires_at?: string
           id?: string
           responded_at?: string | null
+          scheduled_date?: string | null
           status?: Database["public"]["Enums"]["challenge_invite_status"]
         }
         Relationships: []
