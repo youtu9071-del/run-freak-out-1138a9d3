@@ -177,6 +177,50 @@ export default function Challenges() {
     return teams.some(t => t.id === challenge.team_a?.id || t.id === challenge.team_b?.id);
   };
 
+  const handleDeleteTeam = async (team: any) => {
+    if (!user || team.creator_id !== user.id) {
+      toast.error("Seul le créateur peut supprimer l'équipe");
+      return;
+    }
+    if (!confirm(`Supprimer l'équipe "${team.name}" ?`)) return;
+    await supabase.from("team_members").delete().eq("team_id", team.id);
+    const { error } = await supabase.from("teams").delete().eq("id", team.id);
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+    } else {
+      toast.success("Équipe supprimée");
+      fetchTeams();
+      fetchChallenges();
+    }
+  };
+
+  const searchMembersToAdd = async (query: string) => {
+    setMemberSearch(query);
+    if (query.length < 2 || !user) { setMemberResults([]); return; }
+    const existingIds = (addMemberTeam?.members || []).map((m: any) => m.user_id);
+    const { data } = await supabase
+      .from("profiles").select("user_id, username, avatar_url")
+      .ilike("username", `%${query}%`).neq("user_id", user.id).limit(10);
+    setMemberResults((data || []).filter((p: any) => !existingIds.includes(p.user_id)));
+  };
+
+  const handleAddMember = async (profile: any) => {
+    if (!addMemberTeam || !user) return;
+    const { error } = await supabase.from("team_members").insert({
+      team_id: addMemberTeam.id,
+      user_id: profile.user_id,
+      invited_by: user.id,
+      status: "invited",
+    });
+    if (error) {
+      toast.error("Erreur lors de l'ajout");
+    } else {
+      toast.success(`${profile.username} invité(e) ! 🔥`);
+      setMemberResults((prev) => prev.filter((p) => p.user_id !== profile.user_id));
+      fetchTeams();
+    }
+  };
+
   const activeChallenges = challenges.filter((c) => c.status === "active");
   const completedChallenges = challenges.filter((c) => c.status === "completed");
 
