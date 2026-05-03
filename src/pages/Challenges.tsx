@@ -298,21 +298,40 @@ export default function Challenges() {
                 <p className="text-xs text-muted-foreground mt-1">Crée ta première équipe !</p>
               </div>
             ) : (
-              teams.map((team) => (
-                <div key={team.id} className="rounded-2xl bg-card border border-border p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-display font-bold">{team.name}</p>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                      {team.members.filter((m: any) => m.status === "accepted").length} membres
-                    </span>
+              teams.map((team) => {
+                const isCreator = user?.id === team.creator_id;
+                return (
+                  <div key={team.id} className="rounded-2xl bg-card border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-display font-bold">{team.name}</p>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                        {team.members.filter((m: any) => m.status === "accepted").length} membres
+                      </span>
+                    </div>
+                    <div className="flex gap-1 mb-3">
+                      {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
+                        <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">👤</div>
+                      ))}
+                    </div>
+                    {isCreator && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setAddMemberTeam(team); setMemberSearch(""); setMemberResults([]); }}
+                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
+                        >
+                          <UserPlus className="w-3 h-3" /> Ajouter
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTeam(team)}
+                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive"
+                        >
+                          <Trash2 className="w-3 h-3" /> Supprimer
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-1">
-                    {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
-                      <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">👤</div>
-                    ))}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </motion.div>
         )}
