@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check } from "lucide-react";
+import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,10 +30,18 @@ export default function Challenges() {
   const [followers, setFollowers] = useState<any[]>([]);
   const [showFollowers, setShowFollowers] = useState(false);
 
+  // Add-member dialog state for existing teams
+  const [addMemberTeam, setAddMemberTeam] = useState<any | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberResults, setMemberResults] = useState<any[]>([]);
+
   useEffect(() => {
     if (user) {
-      fetchTeams();
-      fetchChallenges();
+      // Auto-expire passed challenges first
+      supabase.rpc("expire_old_challenges" as any).then(() => {
+        fetchTeams();
+        fetchChallenges();
+      });
     }
   }, [user]);
 
