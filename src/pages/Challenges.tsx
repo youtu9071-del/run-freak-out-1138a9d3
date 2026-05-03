@@ -487,6 +487,57 @@ export default function Challenges() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Add member dialog */}
+      <AnimatePresence>
+        {addMemberTeam && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            onClick={() => setAddMemberTeam(null)}
+          >
+            <motion.div
+              initial={{ y: 40 }}
+              animate={{ y: 0 }}
+              exit={{ y: 40 }}
+              className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold">Inviter dans {addMemberTeam.name}</h3>
+                <button onClick={() => setAddMemberTeam(null)}><X className="w-4 h-4" /></button>
+              </div>
+              <input
+                type="text"
+                value={memberSearch}
+                onChange={(e) => searchMembersToAdd(e.target.value)}
+                placeholder="Rechercher un utilisateur..."
+                className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm"
+              />
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {memberResults.length === 0 && memberSearch.length >= 2 && (
+                  <p className="text-xs text-muted-foreground text-center py-3">Aucun résultat</p>
+                )}
+                {memberResults.map((p) => (
+                  <button
+                    key={p.user_id}
+                    onClick={() => handleAddMember(p)}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-secondary text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold overflow-hidden">
+                      {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : p.username[0]}
+                    </div>
+                    <span className="flex-1 text-sm">{p.username}</span>
+                    <UserPlus className="w-4 h-4 text-primary" />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
