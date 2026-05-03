@@ -65,20 +65,14 @@ export default function MarketContent() {
     setPurchasing(true);
     const finalPrice = Math.max(product.price - discount, 0);
 
-    // Generate unique QR data
-    const qrData = JSON.stringify({
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      product_id: product.id,
-      product_name: product.name,
-      fp_used: fpUsed,
-      discount: discount,
-      total_price: finalPrice,
-      currency: product.currency,
-      date: new Date().toISOString(),
-    });
+    // Generate stable unique scan UID (used in URL & lookup)
+    const scanUid = (crypto.randomUUID() as string).replace(/-/g, "");
+    const scanUrl = `${window.location.origin}/scan/${scanUid}`;
 
-    // Save QR code
+    // QR encodes the public scan URL — scanning opens the validation page
+    const qrData = scanUrl;
+
+    // Save QR code with explicit qr_uid so the public scan endpoint can find it
     const { error: qrError } = await supabase.from("purchase_qrcodes").insert({
       user_id: user.id,
       product_id: product.id,
@@ -86,7 +80,8 @@ export default function MarketContent() {
       discount_amount: discount,
       total_price: finalPrice,
       qr_data: qrData,
-    });
+      qr_uid: scanUid,
+    } as any);
 
     if (qrError) {
       toast.error("Erreur lors de l'achat");

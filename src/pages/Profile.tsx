@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import ChallengeInvites from "@/components/ChallengeInvites";
+import NotificationsBell from "@/components/NotificationsBell";
 
 export default function Profile() {
   const { profile, user, signOut, refreshProfile } = useAuth();
@@ -49,7 +50,8 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto">
+    <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto relative">
+      <NotificationsBell />
       {/* Profile Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center mb-6">
         <button onClick={() => fileInputRef.current?.click()} className="relative w-20 h-20 rounded-full overflow-hidden mb-3 neon-glow group">

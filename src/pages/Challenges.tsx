@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check } from "lucide-react";
+import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,10 +30,18 @@ export default function Challenges() {
   const [followers, setFollowers] = useState<any[]>([]);
   const [showFollowers, setShowFollowers] = useState(false);
 
+  // Add-member dialog state for existing teams
+  const [addMemberTeam, setAddMemberTeam] = useState<any | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberResults, setMemberResults] = useState<any[]>([]);
+
   useEffect(() => {
     if (user) {
-      fetchTeams();
-      fetchChallenges();
+      // Auto-expire passed challenges first
+      supabase.rpc("expire_old_challenges" as any).then(() => {
+        fetchTeams();
+        fetchChallenges();
+      });
     }
   }, [user]);
 
@@ -169,6 +177,50 @@ export default function Challenges() {
     return teams.some(t => t.id === challenge.team_a?.id || t.id === challenge.team_b?.id);
   };
 
+  const handleDeleteTeam = async (team: any) => {
+    if (!user || team.creator_id !== user.id) {
+      toast.error("Seul le créateur peut supprimer l'équipe");
+      return;
+    }
+    if (!confirm(`Supprimer l'équipe "${team.name}" ?`)) return;
+    await supabase.from("team_members").delete().eq("team_id", team.id);
+    const { error } = await supabase.from("teams").delete().eq("id", team.id);
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+    } else {
+      toast.success("Équipe supprimée");
+      fetchTeams();
+      fetchChallenges();
+    }
+  };
+
+  const searchMembersToAdd = async (query: string) => {
+    setMemberSearch(query);
+    if (query.length < 2 || !user) { setMemberResults([]); return; }
+    const existingIds = (addMemberTeam?.members || []).map((m: any) => m.user_id);
+    const { data } = await supabase
+      .from("profiles").select("user_id, username, avatar_url")
+      .ilike("username", `%${query}%`).neq("user_id", user.id).limit(10);
+    setMemberResults((data || []).filter((p: any) => !existingIds.includes(p.user_id)));
+  };
+
+  const handleAddMember = async (profile: any) => {
+    if (!addMemberTeam || !user) return;
+    const { error } = await supabase.from("team_members").insert({
+      team_id: addMemberTeam.id,
+      user_id: profile.user_id,
+      invited_by: user.id,
+      status: "invited",
+    });
+    if (error) {
+      toast.error("Erreur lors de l'ajout");
+    } else {
+      toast.success(`${profile.username} invité(e) ! 🔥`);
+      setMemberResults((prev) => prev.filter((p) => p.user_id !== profile.user_id));
+      fetchTeams();
+    }
+  };
+
   const activeChallenges = challenges.filter((c) => c.status === "active");
   const completedChallenges = challenges.filter((c) => c.status === "completed");
 
@@ -290,21 +342,40 @@ export default function Challenges() {
                 <p className="text-xs text-muted-foreground mt-1">Crée ta première équipe !</p>
               </div>
             ) : (
-              teams.map((team) => (
-                <div key={team.id} className="rounded-2xl bg-card border border-border p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-display font-bold">{team.name}</p>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                      {team.members.filter((m: any) => m.status === "accepted").length} membres
-                    </span>
+              teams.map((team) => {
+                const isCreator = user?.id === team.creator_id;
+                return (
+                  <div key={team.id} className="rounded-2xl bg-card border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-display font-bold">{team.name}</p>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                        {team.members.filter((m: any) => m.status === "accepted").length} membres
+                      </span>
+                    </div>
+                    <div className="flex gap-1 mb-3">
+                      {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
+                        <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">👤</div>
+                      ))}
+                    </div>
+                    {isCreator && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setAddMemberTeam(team); setMemberSearch(""); setMemberResults([]); }}
+                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
+                        >
+                          <UserPlus className="w-3 h-3" /> Ajouter
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTeam(team)}
+                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive"
+                        >
+                          <Trash2 className="w-3 h-3" /> Supprimer
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-1">
-                    {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
-                      <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">👤</div>
-                    ))}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </motion.div>
         )}
@@ -413,6 +484,57 @@ export default function Challenges() {
                 {creating ? "Création..." : "CRÉER L'ÉQUIPE"}
               </motion.button>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add member dialog */}
+      <AnimatePresence>
+        {addMemberTeam && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            onClick={() => setAddMemberTeam(null)}
+          >
+            <motion.div
+              initial={{ y: 40 }}
+              animate={{ y: 0 }}
+              exit={{ y: 40 }}
+              className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold">Inviter dans {addMemberTeam.name}</h3>
+                <button onClick={() => setAddMemberTeam(null)}><X className="w-4 h-4" /></button>
+              </div>
+              <input
+                type="text"
+                value={memberSearch}
+                onChange={(e) => searchMembersToAdd(e.target.value)}
+                placeholder="Rechercher un utilisateur..."
+                className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm"
+              />
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {memberResults.length === 0 && memberSearch.length >= 2 && (
+                  <p className="text-xs text-muted-foreground text-center py-3">Aucun résultat</p>
+                )}
+                {memberResults.map((p) => (
+                  <button
+                    key={p.user_id}
+                    onClick={() => handleAddMember(p)}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-secondary text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold overflow-hidden">
+                      {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : p.username[0]}
+                    </div>
+                    <span className="flex-1 text-sm">{p.username}</span>
+                    <UserPlus className="w-4 h-4 text-primary" />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -16,6 +16,7 @@ import Social from "./pages/Social";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import QRScan from "./pages/QRScan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,7 +33,12 @@ function AppRoutes() {
   }
 
   if (!user) {
-    return <Routes><Route path="*" element={<Auth />} /></Routes>;
+    return (
+      <Routes>
+        <Route path="/scan/:uid" element={<QRScan />} />
+        <Route path="*" element={<Auth />} />
+      </Routes>
+    );
   }
 
   if (profile && !profile.onboarding_completed) {
@@ -43,6 +49,7 @@ function AppRoutes() {
     <>
       <Routes>
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/scan/:uid" element={<QRScan />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/activity" element={<ActivityScreen />} />
         <Route path="/profile" element={<Profile />} />
