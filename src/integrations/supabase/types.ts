@@ -268,6 +268,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          read: boolean
+          related_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          read?: boolean
+          related_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          read?: boolean
+          related_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -412,10 +445,12 @@ export type Database = {
         Row: {
           created_at: string
           discount_amount: number
+          expires_at: string | null
           fp_used: number
           id: string
           product_id: string
           qr_data: string
+          qr_uid: string | null
           scanned_by: string | null
           status: string
           total_price: number
@@ -425,10 +460,12 @@ export type Database = {
         Insert: {
           created_at?: string
           discount_amount?: number
+          expires_at?: string | null
           fp_used?: number
           id?: string
           product_id: string
           qr_data: string
+          qr_uid?: string | null
           scanned_by?: string | null
           status?: string
           total_price?: number
@@ -438,10 +475,12 @@ export type Database = {
         Update: {
           created_at?: string
           discount_amount?: number
+          expires_at?: string | null
           fp_used?: number
           id?: string
           product_id?: string
           qr_data?: string
+          qr_uid?: string | null
           scanned_by?: string | null
           status?: string
           total_price?: number
@@ -586,6 +625,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      expire_old_challenges: { Args: never; Returns: undefined }
       get_team_member_count: { Args: { p_team_id: string }; Returns: number }
       has_role: {
         Args: {
@@ -597,6 +637,30 @@ export type Database = {
       is_team_member: {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
+      }
+      scan_qrcode_lookup: {
+        Args: { p_uid: string }
+        Returns: {
+          buyer_name: string
+          created_at: string
+          discount_amount: number
+          expires_at: string
+          fp_used: number
+          id: string
+          product_name: string
+          qr_uid: string
+          status: string
+          total_price: number
+          used_at: string
+        }[]
+      }
+      scan_qrcode_validate: {
+        Args: { p_uid: string }
+        Returns: {
+          already_used: boolean
+          status: string
+          used_at: string
+        }[]
       }
       update_profile_stats: { Args: { p_user_id: string }; Returns: undefined }
     }
