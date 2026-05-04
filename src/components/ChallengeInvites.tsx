@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Invite {
   id: string;
@@ -20,17 +22,21 @@ interface Invite {
   challenger_profile?: { username: string; avatar_url: string | null };
 }
 
+const MAX_REFUSAL_MESSAGE = 200;
+
 export default function ChallengeInvites() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refuseInvite, setRefuseInvite] = useState<Invite | null>(null);
+  const [refuseMessage, setRefuseMessage] = useState("");
+  const [refusing, setRefusing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     fetchInvites();
 
-    // Realtime: listen to new invites for this user
     const channel = supabase
       .channel("challenge_invites_realtime")
       .on(
@@ -59,7 +65,6 @@ export default function ChallengeInvites() {
       const now = new Date();
       const valid = data.filter((inv) => new Date(inv.expires_at) > now);
 
-      // Mark expired in background (no answer after 3 days → disappears)
       const expired = data.filter((inv) => new Date(inv.expires_at) <= now);
       if (expired.length > 0) {
         for (const inv of expired) {
@@ -86,26 +91,66 @@ export default function ChallengeInvites() {
     setLoading(false);
   };
 
-  const handleRespond = async (invite: Invite, accept: boolean) => {
-    const status = accept ? "accepted" : "refused";
+  const handleAccept = async (invite: Invite) => {
     const { error } = await supabase
       .from("challenge_invites")
-      .update({ status: status as any, responded_at: new Date().toISOString() })
+      .update({ status: "accepted" as any, responded_at: new Date().toISOString() })
       .eq("id", invite.id);
 
     if (error) {
       toast.error("Erreur");
       return;
     }
-
     setInvites((prev) => prev.filter((i) => i.id !== invite.id));
+    toast.success("Défi accepté ! La course commence 🔥");
+    setTimeout(() => navigate("/activity"), 600);
+  };
 
-    if (accept) {
-      toast.success("Défi accepté ! La course commence 🔥");
-      setTimeout(() => navigate("/activity"), 600);
-    } else {
-      toast.success("Défi refusé");
+  const openRefuseDialog = (invite: Invite) => {
+    setRefuseInvite(invite);
+    setRefuseMessage("");
+  };
+
+  const submitRefusal = async () => {
+    if (!refuseInvite || !user) return;
+    const trimmed = refuseMessage.trim().slice(0, MAX_REFUSAL_MESSAGE);
+
+    setRefusing(true);
+    const { error } = await supabase
+      .from("challenge_invites")
+      .update({ status: "refused" as any, responded_at: new Date().toISOString() })
+      .eq("id", refuseInvite.id);
+
+    if (error) {
+      toast.error("Erreur");
+      setRefusing(false);
+      return;
     }
+
+    // Notify the challenger
+    const { data: meProfile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const myName = meProfile?.username || "Un runner";
+    const baseMsg = `${myName} a refusé ton défi de ${refuseInvite.distance_km} km`;
+    const finalMsg = trimmed ? `${baseMsg} — « ${trimmed} »` : baseMsg;
+
+    await supabase.from("notifications" as any).insert({
+      user_id: refuseInvite.challenger_id,
+      type: "challenge_refused",
+      title: "Défi refusé ❌",
+      message: finalMsg,
+      related_id: refuseInvite.id,
+    });
+
+    setInvites((prev) => prev.filter((i) => i.id !== refuseInvite.id));
+    toast.success("Défi refusé");
+    setRefuseInvite(null);
+    setRefuseMessage("");
+    setRefusing(false);
   };
 
   if (loading || invites.length === 0) return null;
@@ -153,13 +198,13 @@ export default function ChallengeInvites() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => handleRespond(invite, true)}
+                onClick={() => handleAccept(invite)}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground neon-glow"
               >
                 <Check className="w-4 h-4" /> Accepter
               </button>
               <button
-                onClick={() => handleRespond(invite, false)}
+                onClick={() => openRefuseDialog(invite)}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-bold text-secondary-foreground"
               >
                 <X className="w-4 h-4" /> Refuser
@@ -168,6 +213,49 @@ export default function ChallengeInvites() {
           </motion.div>
         ))}
       </AnimatePresence>
+
+      <Dialog open={!!refuseInvite} onOpenChange={(o) => !o && setRefuseInvite(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <X className="w-5 h-5 text-destructive" /> Refuser le défi
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Tu peux ajouter un court message pour {refuseInvite?.challenger_profile?.username || "ton adversaire"} (optionnel).
+            </p>
+            <div>
+              <Textarea
+                value={refuseMessage}
+                onChange={(e) => setRefuseMessage(e.target.value.slice(0, MAX_REFUSAL_MESSAGE))}
+                placeholder="Ex: Pas dispo cette semaine, on remet ça !"
+                className="resize-none"
+                rows={3}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                {refuseMessage.length}/{MAX_REFUSAL_MESSAGE}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                disabled={refusing}
+                onClick={() => setRefuseInvite(null)}
+                className="flex-1 rounded-xl bg-secondary py-2.5 text-sm font-bold text-secondary-foreground disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                disabled={refusing}
+                onClick={submitRefusal}
+                className="flex-1 rounded-xl bg-destructive py-2.5 text-sm font-bold text-destructive-foreground disabled:opacity-50"
+              >
+                {refusing ? "..." : "Confirmer le refus"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
