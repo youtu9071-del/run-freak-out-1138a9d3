@@ -141,6 +141,10 @@ export default function MarketContent() {
                     <span className="font-bold text-foreground">{formatPrice(product.price, product.currency)}</span>
                     <span className="text-[10px] text-primary flex items-center gap-0.5"><Tag className="w-3 h-3" /> -{(product.fp_discount_rate * 100).toFixed(0)}%/FP</span>
                   </div>
+                  <div className="flex items-center gap-1 text-[10px] text-accent">
+                    <Zap className="w-3 h-3" />
+                    <span>Max {product.max_fp_discount} FP</span>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
