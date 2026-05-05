@@ -13,14 +13,28 @@ type ChallengeView = "list" | "create_team";
 
 export default function Challenges() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("defis");
   const [view, setView] = useState<ChallengeView>("list");
   const [teamName, setTeamName] = useState("");
   const [teamSize, setTeamSize] = useState(3);
   const [teams, setTeams] = useState<any[]>([]);
   const [challenges, setChallenges] = useState<any[]>([]);
+  const [participations, setParticipations] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
   const [joiningChallenge, setJoiningChallenge] = useState<string | null>(null);
+
+  // Launch challenge dialog
+  const [launchTeam, setLaunchTeam] = useState<any | null>(null);
+  const [launchDistance, setLaunchDistance] = useState(5);
+  const [launchReward, setLaunchReward] = useState(50);
+  const [launchEnd, setLaunchEnd] = useState("");
+  const [launching, setLaunching] = useState(false);
+
+  // Accept challenge dialog
+  const [acceptChallenge, setAcceptChallenge] = useState<any | null>(null);
+  const [acceptTeamId, setAcceptTeamId] = useState<string>("");
+  const [accepting, setAccepting] = useState(false);
 
   // New: date + member invitation
   const [startDate, setStartDate] = useState("");
