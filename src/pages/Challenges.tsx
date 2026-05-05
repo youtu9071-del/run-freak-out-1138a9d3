@@ -366,13 +366,55 @@ export default function Challenges() {
       <AnimatePresence mode="wait">
         {tab === "defis" && (
           <motion.div key="defis" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-            <motion.button whileTap={{ scale: 0.97 }} className="w-full rounded-2xl gradient-accent p-5 flex items-center gap-4 accent-glow">
-              <Search className="w-8 h-8 text-accent-foreground" />
+            <motion.button whileTap={{ scale: 0.97 }} onClick={() => setTab("equipes")} className="w-full rounded-2xl gradient-accent p-5 flex items-center gap-4 accent-glow">
+              <Rocket className="w-8 h-8 text-accent-foreground" />
               <div className="text-left">
-                <p className="font-display font-bold text-lg text-accent-foreground">TROUVER UN ADVERSAIRE</p>
-                <p className="text-xs text-accent-foreground/70">Auto-match avec une équipe de ton niveau</p>
+                <p className="font-display font-bold text-lg text-accent-foreground">LANCER UN DÉFI</p>
+                <p className="text-xs text-accent-foreground/70">Depuis l'onglet Équipes, choisis ton équipe</p>
               </div>
             </motion.button>
+
+            {/* OPEN CHALLENGES — can be accepted */}
+            {openChallenges.length > 0 && (
+              <>
+                <h3 className="font-display font-bold text-sm text-accent mt-6">DÉFIS OUVERTS À RELEVER</h3>
+                {openChallenges.map((ch) => {
+                  const isMine = ch.team_a?.creator_id === user?.id;
+                  const sizeA = teams.find(t => t.id === ch.team_a?.id)?.members.filter((m: any) => m.status === "accepted").length
+                    ?? ch.max_members;
+                  return (
+                    <div key={ch.id} className="rounded-2xl bg-card border border-accent/30 p-4 accent-glow space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-display font-bold text-sm">{ch.team_a?.name}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent font-bold">EN ATTENTE</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="flex items-center gap-1 text-muted-foreground"><Shield className="w-3 h-3" />{ch.distance_km} km</div>
+                        <div className="flex items-center gap-1 text-primary"><Trophy className="w-3 h-3" />{ch.reward_fp} FP</div>
+                        <div className="flex items-center gap-1 text-muted-foreground"><Users className="w-3 h-3" />{sizeA}v{sizeA}</div>
+                      </div>
+                      {ch.end_date && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
+                          <Calendar className="w-3 h-3" />
+                          <span>Fin : {format(new Date(ch.end_date), "dd MMM yyyy", { locale: fr })}</span>
+                        </div>
+                      )}
+                      {!isMine && (
+                        <button
+                          onClick={() => { setAcceptChallenge({ ...ch, requiredSize: sizeA }); setAcceptTeamId(""); }}
+                          className="w-full rounded-xl gradient-primary py-2 text-sm font-bold text-primary-foreground flex items-center justify-center gap-2"
+                        >
+                          <Swords className="w-4 h-4" /> Relever le défi
+                        </button>
+                      )}
+                      {isMine && (
+                        <p className="text-xs text-muted-foreground text-center">En attente d'une équipe adverse de {sizeA} joueurs…</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
 
             <h3 className="font-display font-bold text-sm text-muted-foreground mt-6">DÉFIS EN COURS</h3>
             {activeChallenges.length === 0 ? (
@@ -380,45 +422,70 @@ export default function Challenges() {
                 <p className="text-sm text-muted-foreground">Aucun défi en cours</p>
               </div>
             ) : (
-              activeChallenges.map((ch) => (
-                <div key={ch.id} className="rounded-2xl bg-card border border-primary/20 p-4 neon-glow space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Swords className="w-4 h-4 text-accent" />
-                      <span className="font-display font-bold text-sm">{ch.team_a?.name}</span>
+              activeChallenges.map((ch) => {
+                const inA = teams.some(t => t.id === ch.team_a?.id);
+                const inB = teams.some(t => t.id === ch.team_b?.id);
+                const inThis = inA || inB;
+                const myPart = myParticipation(ch.id);
+                const { aDone, bDone } = challengeProgress(ch);
+                const sizeA = teams.find(t => t.id === ch.team_a?.id)?.members.filter((m: any) => m.status === "accepted").length ?? ch.max_members;
+                const sizeB = teams.find(t => t.id === ch.team_b?.id)?.members.filter((m: any) => m.status === "accepted").length ?? ch.max_members;
+                const allDone = aDone >= sizeA && bDone >= sizeB;
+                const isAnyCreator = ch.team_a?.creator_id === user?.id || ch.team_b?.creator_id === user?.id;
+                return (
+                  <div key={ch.id} className="rounded-2xl bg-card border border-primary/20 p-4 neon-glow space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Swords className="w-4 h-4 text-accent" />
+                        <span className="font-display font-bold text-sm">{ch.team_a?.name}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">vs</span>
+                      <span className="font-display font-bold text-sm">{ch.team_b?.name}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">vs</span>
-                    <span className="font-display font-bold text-sm">{ch.team_b?.name}</span>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1"><Shield className="w-3 h-3" />{ch.distance_km} km</span>
+                      <span className="text-primary flex items-center gap-1"><Trophy className="w-3 h-3" />{ch.reward_fp} FP</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
+                        <p className="text-muted-foreground">{ch.team_a?.name}</p>
+                        <p className="font-bold text-primary">{aDone}/{sizeA} terminé(s)</p>
+                      </div>
+                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
+                        <p className="text-muted-foreground">{ch.team_b?.name}</p>
+                        <p className="font-bold text-primary">{bDone}/{sizeB} terminé(s)</p>
+                      </div>
+                    </div>
+                    {ch.end_date && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
+                        <Calendar className="w-3 h-3" />
+                        <span>Fin : {format(new Date(ch.end_date), "dd MMM yyyy", { locale: fr })}</span>
+                      </div>
+                    )}
+                    {inThis && !myPart?.completed && (
+                      <button
+                        onClick={() => startMyRun(ch)}
+                        className="w-full rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground flex items-center justify-center gap-2 neon-glow"
+                      >
+                        <Play className="w-4 h-4" /> COMMENCER MA COURSE
+                      </button>
+                    )}
+                    {myPart?.completed && (
+                      <div className="rounded-xl bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary text-center flex items-center justify-center gap-2">
+                        <Check className="w-3 h-3" /> Tu as terminé : {(myPart.duration_seconds/60).toFixed(1)} min — {myPart.distance_km} km
+                      </div>
+                    )}
+                    {allDone && isAnyCreator && (
+                      <button
+                        onClick={() => handleFinalize(ch.id)}
+                        className="w-full rounded-xl bg-accent/20 border border-accent/40 py-2 text-sm font-bold text-accent flex items-center justify-center gap-2"
+                      >
+                        <Flag className="w-4 h-4" /> Finaliser le défi
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Shield className="w-3 h-3" /> <span>{ch.distance_km} km</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-accent">
-                      <Clock className="w-3 h-3" /> <span>{ch.time_limit_hours}h restant</span>
-                    </div>
-                  </div>
-                  {(ch.start_date || ch.end_date) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
-                      <Calendar className="w-3 h-3" />
-                      <span>
-                        {ch.start_date && format(new Date(ch.start_date), "dd MMM", { locale: fr })}
-                        {ch.end_date && ` → ${format(new Date(ch.end_date), "dd MMM yyyy", { locale: fr })}`}
-                      </span>
-                    </div>
-                  )}
-                  {!isUserInChallenge(ch) && (
-                    <button
-                      onClick={() => handleJoinChallenge(ch)}
-                      disabled={joiningChallenge === ch.id}
-                      className="w-full rounded-xl bg-primary/10 border border-primary/30 py-2 text-sm font-bold text-primary hover:bg-primary/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      {joiningChallenge === ch.id ? "Rejoindre..." : "Rejoindre ce défi"}
-                    </button>
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
 
             <h3 className="font-display font-bold text-sm text-muted-foreground mt-4">TERMINÉS</h3>
@@ -427,18 +494,33 @@ export default function Challenges() {
                 <p className="text-sm text-muted-foreground">Aucun défi terminé</p>
               </div>
             ) : (
-              completedChallenges.map((ch) => (
-                <div key={ch.id} className="rounded-2xl bg-card border border-border p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-display font-bold text-sm">{ch.team_a?.name} vs {ch.team_b?.name}</span>
-                    <Trophy className="w-4 h-4 text-primary" />
+              completedChallenges.map((ch) => {
+                const winnerName = ch.winner_team_id === ch.team_a?.id ? ch.team_a?.name
+                  : ch.winner_team_id === ch.team_b?.id ? ch.team_b?.name : "Match nul";
+                const fmt = (s: number | null) => s ? `${(s/60).toFixed(2)} min` : "—";
+                return (
+                  <div key={ch.id} className="rounded-2xl bg-card border border-border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-display font-bold text-sm">{ch.team_a?.name} vs {ch.team_b?.name}</span>
+                      <Trophy className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
+                        <p className="text-muted-foreground">{ch.team_a?.name}</p>
+                        <p className="font-bold">{fmt(ch.team_a_avg_time)}</p>
+                      </div>
+                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
+                        <p className="text-muted-foreground">{ch.team_b?.name}</p>
+                        <p className="font-bold">{fmt(ch.team_b_avg_time)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{ch.distance_km} km · {ch.reward_fp} FP</span>
+                      <span className="text-primary font-bold">🏆 {winnerName}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{ch.distance_km} km</span>
-                    {ch.winner_team_id && <span className="text-primary font-bold">🏆 Vainqueur déterminé</span>}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </motion.div>
         )}
