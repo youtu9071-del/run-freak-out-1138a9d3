@@ -775,6 +775,89 @@ export default function Challenges() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Launch challenge dialog */}
+      <AnimatePresence>
+        {launchTeam && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            onClick={() => setLaunchTeam(null)}>
+            <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
+              className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-4"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold">Lancer un défi — {launchTeam.name}</h3>
+                <button onClick={() => setLaunchTeam(null)}><X className="w-4 h-4" /></button>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Distance (km)</label>
+                <div className="flex gap-2">
+                  {[3, 5, 10, 21].map((d) => (
+                    <button key={d} onClick={() => setLaunchDistance(d)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold ${launchDistance === d ? "gradient-primary text-primary-foreground" : "bg-secondary"}`}>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Récompense FP (pour chaque vainqueur)</label>
+                <input type="number" min={10} max={500} value={launchReward} onChange={(e) => setLaunchReward(Number(e.target.value))}
+                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Date de fin</label>
+                <input type="date" value={launchEnd} onChange={(e) => setLaunchEnd(e.target.value)}
+                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
+              </div>
+              <button onClick={handleLaunchChallenge} disabled={launching}
+                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50">
+                {launching ? "Lancement…" : "LANCER LE DÉFI ⚔️"}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Accept challenge dialog */}
+      <AnimatePresence>
+        {acceptChallenge && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            onClick={() => setAcceptChallenge(null)}>
+            <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
+              className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-4"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold">Relever le défi</h3>
+                <button onClick={() => setAcceptChallenge(null)}><X className="w-4 h-4" /></button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choisis ton équipe ({acceptChallenge.requiredSize} joueurs requis) — {acceptChallenge.distance_km} km · {acceptChallenge.reward_fp} FP
+              </p>
+              {myCaptainTeamsOfSize(acceptChallenge.requiredSize).length === 0 ? (
+                <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive">
+                  Aucune de tes équipes n'a {acceptChallenge.requiredSize} membres acceptés. Crée ou complète une équipe.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {myCaptainTeamsOfSize(acceptChallenge.requiredSize).map((t) => (
+                    <button key={t.id} onClick={() => setAcceptTeamId(t.id)}
+                      className={`w-full p-3 rounded-xl border text-left transition-colors ${acceptTeamId === t.id ? "border-primary bg-primary/10" : "border-border bg-secondary"}`}>
+                      <p className="font-bold text-sm">{t.name}</p>
+                      <p className="text-xs text-muted-foreground">{t.members.filter((m: any) => m.status === "accepted").length} membres</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button onClick={handleAcceptChallenge} disabled={accepting || !acceptTeamId}
+                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50">
+                {accepting ? "Acceptation…" : "RELEVER LE DÉFI 🔥"}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
