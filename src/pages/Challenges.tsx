@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check, Trash2 } from "lucide-react";
+import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check, Trash2, Play, Flag, Rocket } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 type Tab = "defis" | "equipes";
 type ChallengeView = "list" | "create_team";
