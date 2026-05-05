@@ -219,6 +219,24 @@ export default function ActivityScreen() {
 
       // Update profile stats
       await supabase.rpc("update_profile_stats" as any, { p_user_id: user.id });
+
+      // If this was a team-challenge run, submit the participation
+      try {
+        const raw = sessionStorage.getItem("active_team_challenge");
+        if (raw) {
+          const ctx = JSON.parse(raw);
+          if (ctx?.id) {
+            await supabase.rpc("submit_team_challenge_run" as any, {
+              p_challenge_id: ctx.id,
+              p_distance_km: activity.distanceKm,
+              p_duration_seconds: seconds,
+              p_total_fp: totalFp,
+            });
+            sessionStorage.removeItem("active_team_challenge");
+          }
+        }
+      } catch { /* ignore */ }
+
       refreshProfile();
     }
   };
