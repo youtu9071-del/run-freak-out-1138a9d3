@@ -339,6 +339,7 @@ export default function Challenges() {
     }
   };
 
+  const openChallenges = challenges.filter((c) => c.status === "open");
   const activeChallenges = challenges.filter((c) => c.status === "active");
   const completedChallenges = challenges.filter((c) => c.status === "completed");
 
