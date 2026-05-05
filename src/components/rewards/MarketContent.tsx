@@ -56,9 +56,13 @@ export default function MarketContent() {
 
     const { discount, fpUsed } = fpToUse > 0 ? calculateDiscount(product, fpToUse) : { discount: 0, fpUsed: 0 };
 
-    // Check FP balance
-    if (fpUsed > userFp) {
-      toast.error("FP insuffisants ❌");
+    // Strict FP balance check
+    if (fpUsed > 0 && fpUsed > userFp) {
+      toast.error(`FP insuffisants : tu as ${userFp} FP, il en faut ${fpUsed} ❌`);
+      return;
+    }
+    if (fpUsed > product.max_fp_discount) {
+      toast.error(`Réduction max : ${product.max_fp_discount} FP pour ce produit ❌`);
       return;
     }
 
