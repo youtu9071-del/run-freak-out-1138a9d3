@@ -587,19 +587,27 @@ export default function Challenges() {
                       ))}
                     </div>
                     {isCreator && (
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
                         <button
-                          onClick={() => { setAddMemberTeam(team); setMemberSearch(""); setMemberResults([]); }}
-                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
+                          onClick={() => { setLaunchTeam(team); setLaunchDistance(5); setLaunchReward(50); setLaunchEnd(""); }}
+                          className="w-full flex items-center justify-center gap-1 rounded-lg gradient-primary py-2 text-xs font-bold text-primary-foreground neon-glow"
                         >
-                          <UserPlus className="w-3 h-3" /> Ajouter
+                          <Rocket className="w-3 h-3" /> Lancer un défi avec cette équipe
                         </button>
-                        <button
-                          onClick={() => handleDeleteTeam(team)}
-                          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive"
-                        >
-                          <Trash2 className="w-3 h-3" /> Supprimer
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setAddMemberTeam(team); setMemberSearch(""); setMemberResults([]); }}
+                            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
+                          >
+                            <UserPlus className="w-3 h-3" /> Ajouter
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTeam(team)}
+                            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive"
+                          >
+                            <Trash2 className="w-3 h-3" /> Supprimer
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
