@@ -172,7 +172,19 @@ export default function MarketContent() {
                   <span className="text-muted-foreground">Prix</span>
                   <span className="font-bold text-foreground">{formatPrice(selectedProduct.price, selectedProduct.currency)}</span>
                 </div>
-                <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Réduction max FP</span>
+                  <span className="text-accent font-bold">{selectedProduct.max_fp_discount} FP ({(selectedProduct.fp_discount_rate * 100).toFixed(0)}% / FP)</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Tes FP</span>
+                  <span className={`font-bold ${userFp >= selectedProduct.max_fp_discount ? "text-primary" : "text-muted-foreground"}`}>{userFp} FP</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground italic border-t border-border/50 pt-2">
+                  Ex : produit à 100 {currencySymbols[selectedProduct.currency]} avec {(selectedProduct.fp_discount_rate * 100).toFixed(0)}% / FP →
+                  utiliser {Math.min(10, selectedProduct.max_fp_discount)} FP donne -{(Math.min(10, selectedProduct.max_fp_discount) * selectedProduct.fp_discount_rate * 100).toFixed(0)}%.
+                </div>
+                <div className="space-y-1 pt-2">
                   <label className="text-xs text-muted-foreground">Utiliser des FP (max {Math.min(userFp, selectedProduct.max_fp_discount)})</label>
                   <Input type="number" min={0} max={Math.min(userFp, selectedProduct.max_fp_discount)} value={fpToUse}
                     onChange={(e) => setFpToUse(Math.max(0, Math.min(parseInt(e.target.value) || 0, Math.min(userFp, selectedProduct.max_fp_discount))))} />
