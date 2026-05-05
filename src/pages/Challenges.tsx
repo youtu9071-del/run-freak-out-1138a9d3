@@ -35,15 +35,58 @@ export default function Challenges() {
   const [memberSearch, setMemberSearch] = useState("");
   const [memberResults, setMemberResults] = useState<any[]>([]);
 
+  // Pending team invitations addressed to current user
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+
   useEffect(() => {
     if (user) {
       // Auto-expire passed challenges first
       supabase.rpc("expire_old_challenges" as any).then(() => {
         fetchTeams();
         fetchChallenges();
+        fetchPendingInvites();
       });
     }
   }, [user]);
+
+  const fetchPendingInvites = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("team_members")
+      .select("id, team_id, invited_by, teams:team_id(name), inviter:invited_by(username)")
+      .eq("user_id", user.id)
+      .eq("status", "invited");
+    // Manually fetch team + inviter names (no FK relations in schema)
+    if (data && data.length > 0) {
+      const enriched = await Promise.all(
+        data.map(async (inv: any) => {
+          const { data: t } = await supabase.from("teams").select("name").eq("id", inv.team_id).maybeSingle();
+          const { data: p } = await supabase.from("profiles").select("username").eq("user_id", inv.invited_by).maybeSingle();
+          return { ...inv, team_name: t?.name, inviter_name: p?.username };
+        })
+      );
+      setPendingInvites(enriched);
+    } else {
+      setPendingInvites([]);
+    }
+  };
+
+  const respondInvite = async (inviteId: string, accept: boolean) => {
+    if (accept) {
+      const { error } = await supabase
+        .from("team_members")
+        .update({ status: "accepted" as any })
+        .eq("id", inviteId);
+      if (error) { toast.error("Erreur"); return; }
+      toast.success("Tu as rejoint l'équipe ! 🔥");
+    } else {
+      const { error } = await supabase.from("team_members").delete().eq("id", inviteId);
+      if (error) { toast.error("Erreur"); return; }
+      toast.success("Invitation refusée");
+    }
+    fetchPendingInvites();
+    fetchTeams();
+  };
 
   const fetchTeams = async () => {
     if (!user) return;
