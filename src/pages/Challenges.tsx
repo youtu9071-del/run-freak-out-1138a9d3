@@ -125,9 +125,69 @@ export default function Challenges() {
     if (!user) return;
     const { data } = await supabase
       .from("challenges")
-      .select("*, team_a:teams!challenges_team_a_id_fkey(id, name), team_b:teams!challenges_team_b_id_fkey(id, name)")
-      .order("created_at", { ascending: false }).limit(20);
+      .select("*, team_a:teams!challenges_team_a_id_fkey(id, name, creator_id), team_b:teams!challenges_team_b_id_fkey(id, name, creator_id)")
+      .order("created_at", { ascending: false }).limit(30);
     if (data) setChallenges(data);
+    const { data: parts } = await supabase.from("challenge_participations" as any).select("*");
+    if (parts) setParticipations(parts as any[]);
+  };
+
+  const handleLaunchChallenge = async () => {
+    if (!launchTeam || !user) return;
+    setLaunching(true);
+    const endIso = launchEnd ? new Date(launchEnd).toISOString() : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    const { error } = await supabase.rpc("start_team_challenge" as any, {
+      p_team_id: launchTeam.id,
+      p_distance_km: launchDistance,
+      p_reward_fp: launchReward,
+      p_end_date: endIso,
+    });
+    setLaunching(false);
+    if (error) { toast.error(error.message || "Erreur"); return; }
+    toast.success("Défi lancé ! En attente d'un adversaire ⚔️");
+    setLaunchTeam(null); setLaunchEnd("");
+    fetchChallenges();
+  };
+
+  const myCaptainTeamsOfSize = (size: number) =>
+    teams.filter((t) => t.creator_id === user?.id && t.members.filter((m: any) => m.status === "accepted").length === size);
+
+  const handleAcceptChallenge = async () => {
+    if (!acceptChallenge || !acceptTeamId || !user) return;
+    setAccepting(true);
+    const { error } = await supabase.rpc("accept_team_challenge" as any, {
+      p_challenge_id: acceptChallenge.id,
+      p_team_id: acceptTeamId,
+    });
+    setAccepting(false);
+    if (error) { toast.error(error.message || "Erreur"); return; }
+    toast.success("Défi relevé ! 🔥");
+    setAcceptChallenge(null); setAcceptTeamId("");
+    fetchChallenges();
+  };
+
+  const startMyRun = (challenge: any) => {
+    sessionStorage.setItem("active_team_challenge", JSON.stringify({
+      id: challenge.id,
+      distance_km: challenge.distance_km,
+    }));
+    navigate("/activity");
+  };
+
+  const handleFinalize = async (challengeId: string) => {
+    const { error } = await supabase.rpc("finalize_team_challenge" as any, { p_challenge_id: challengeId });
+    if (error) { toast.error(error.message || "Impossible de finaliser"); return; }
+    toast.success("Défi finalisé 🏆");
+    fetchChallenges();
+  };
+
+  const myParticipation = (challengeId: string) =>
+    participations.find((p) => p.challenge_id === challengeId && p.user_id === user?.id);
+
+  const challengeProgress = (challenge: any) => {
+    const aDone = participations.filter(p => p.challenge_id === challenge.id && p.team_id === challenge.team_a?.id && p.completed).length;
+    const bDone = participations.filter(p => p.challenge_id === challenge.id && p.team_id === challenge.team_b?.id && p.completed).length;
+    return { aDone, bDone };
   };
 
   const fetchFollowers = async () => {
