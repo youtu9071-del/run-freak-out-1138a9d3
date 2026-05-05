@@ -35,15 +35,58 @@ export default function Challenges() {
   const [memberSearch, setMemberSearch] = useState("");
   const [memberResults, setMemberResults] = useState<any[]>([]);
 
+  // Pending team invitations addressed to current user
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+
   useEffect(() => {
     if (user) {
       // Auto-expire passed challenges first
       supabase.rpc("expire_old_challenges" as any).then(() => {
         fetchTeams();
         fetchChallenges();
+        fetchPendingInvites();
       });
     }
   }, [user]);
+
+  const fetchPendingInvites = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("team_members")
+      .select("id, team_id, invited_by, teams:team_id(name), inviter:invited_by(username)")
+      .eq("user_id", user.id)
+      .eq("status", "invited");
+    // Manually fetch team + inviter names (no FK relations in schema)
+    if (data && data.length > 0) {
+      const enriched = await Promise.all(
+        data.map(async (inv: any) => {
+          const { data: t } = await supabase.from("teams").select("name").eq("id", inv.team_id).maybeSingle();
+          const { data: p } = await supabase.from("profiles").select("username").eq("user_id", inv.invited_by).maybeSingle();
+          return { ...inv, team_name: t?.name, inviter_name: p?.username };
+        })
+      );
+      setPendingInvites(enriched);
+    } else {
+      setPendingInvites([]);
+    }
+  };
+
+  const respondInvite = async (inviteId: string, accept: boolean) => {
+    if (accept) {
+      const { error } = await supabase
+        .from("team_members")
+        .update({ status: "accepted" as any })
+        .eq("id", inviteId);
+      if (error) { toast.error("Erreur"); return; }
+      toast.success("Tu as rejoint l'équipe ! 🔥");
+    } else {
+      const { error } = await supabase.from("team_members").delete().eq("id", inviteId);
+      if (error) { toast.error("Erreur"); return; }
+      toast.success("Invitation refusée");
+    }
+    fetchPendingInvites();
+    fetchTeams();
+  };
 
   const fetchTeams = async () => {
     if (!user) return;
@@ -334,6 +377,34 @@ export default function Challenges() {
                 <p className="text-xs text-primary-foreground/70">2 à 5 joueurs</p>
               </div>
             </motion.button>
+
+            {pendingInvites.length > 0 && (
+              <>
+                <h3 className="font-display font-bold text-sm text-accent">INVITATIONS REÇUES ({pendingInvites.length})</h3>
+                {pendingInvites.map((inv) => (
+                  <div key={inv.id} className="rounded-2xl bg-card border border-accent/30 p-4 accent-glow space-y-3">
+                    <div>
+                      <p className="font-display font-bold text-sm">{inv.team_name || "Équipe"}</p>
+                      <p className="text-xs text-muted-foreground">Invité par {inv.inviter_name || "un runner"}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => respondInvite(inv.id, true)}
+                        className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
+                      >
+                        <Check className="w-3 h-3" /> Accepter
+                      </button>
+                      <button
+                        onClick={() => respondInvite(inv.id, false)}
+                        className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive"
+                      >
+                        <X className="w-3 h-3" /> Refuser
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
 
             <h3 className="font-display font-bold text-sm text-muted-foreground">MES ÉQUIPES</h3>
             {teams.length === 0 ? (

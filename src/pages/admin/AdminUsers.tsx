@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminUsers() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
@@ -12,6 +16,26 @@ export default function AdminUsers() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleDelete = async (u: any) => {
+    if (!user) return;
+    if (u.user_id === user.id) {
+      toast.error("Tu ne peux pas te supprimer toi-même");
+      return;
+    }
+    if (!confirm(`Supprimer définitivement « ${u.username} » ? Cette action est irréversible.`)) return;
+    setDeleting(u.user_id);
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { user_id: u.user_id },
+    });
+    setDeleting(null);
+    if (error || (data && (data as any).error)) {
+      toast.error("Erreur : " + (error?.message || (data as any).error));
+      return;
+    }
+    toast.success("Utilisateur supprimé");
+    setUsers((prev) => prev.filter((x) => x.user_id !== u.user_id));
+  };
 
   const filtered = users.filter(u =>
     u.username?.toLowerCase().includes(search.toLowerCase())
@@ -49,10 +73,18 @@ export default function AdminUsers() {
                 {u.gender || "—"} · {u.fitness_level || "—"} · Inscrit le {new Date(u.created_at).toLocaleDateString("fr-FR")}
               </p>
             </div>
-            <div className="text-right">
+            <div className="text-right mr-2">
               <p className="text-sm font-bold text-primary">{u.total_fp || 0} FP</p>
               <p className="text-xs text-muted-foreground">{u.total_km || 0} km</p>
             </div>
+            <button
+              onClick={() => handleDelete(u)}
+              disabled={deleting === u.user_id || u.user_id === user?.id}
+              className="p-2 rounded-lg hover:bg-destructive/20 disabled:opacity-40"
+              title="Supprimer"
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </button>
           </div>
         ))}
         {filtered.length === 0 && <p className="text-center text-muted-foreground text-sm py-8">Aucun utilisateur trouvé</p>}
