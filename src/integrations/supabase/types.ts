@@ -50,6 +50,50 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_participations: {
+        Row: {
+          challenge_id: string
+          completed: boolean
+          created_at: string
+          distance_km: number
+          duration_seconds: number
+          id: string
+          team_id: string
+          total_fp: number
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          completed?: boolean
+          created_at?: string
+          distance_km?: number
+          duration_seconds?: number
+          id?: string
+          team_id: string
+          total_fp?: number
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          completed?: boolean
+          created_at?: string
+          distance_km?: number
+          duration_seconds?: number
+          id?: string
+          team_id?: string
+          total_fp?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_participations_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_results: {
         Row: {
           challenge_id: string
@@ -98,12 +142,13 @@ export type Database = {
           end_date: string | null
           id: string
           max_members: number | null
+          reward_fp: number
           start_date: string | null
           status: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time: number | null
           team_a_id: string
           team_b_avg_time: number | null
-          team_b_id: string
+          team_b_id: string | null
           time_limit_hours: number | null
           winner_team_id: string | null
         }
@@ -113,12 +158,13 @@ export type Database = {
           end_date?: string | null
           id?: string
           max_members?: number | null
+          reward_fp?: number
           start_date?: string | null
           status?: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time?: number | null
           team_a_id: string
           team_b_avg_time?: number | null
-          team_b_id: string
+          team_b_id?: string | null
           time_limit_hours?: number | null
           winner_team_id?: string | null
         }
@@ -128,12 +174,13 @@ export type Database = {
           end_date?: string | null
           id?: string
           max_members?: number | null
+          reward_fp?: number
           start_date?: string | null
           status?: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time?: number | null
           team_a_id?: string
           team_b_avg_time?: number | null
-          team_b_id?: string
+          team_b_id?: string | null
           time_limit_hours?: number | null
           winner_team_id?: string | null
         }
@@ -625,7 +672,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_team_challenge: {
+        Args: { p_challenge_id: string; p_team_id: string }
+        Returns: undefined
+      }
       expire_old_challenges: { Args: never; Returns: undefined }
+      finalize_team_challenge: {
+        Args: { p_challenge_id: string }
+        Returns: {
+          avg_a: number
+          avg_b: number
+          winner_team_id: string
+        }[]
+      }
       get_team_member_count: { Args: { p_team_id: string }; Returns: number }
       has_role: {
         Args: {
@@ -662,12 +721,30 @@ export type Database = {
           used_at: string
         }[]
       }
+      start_team_challenge: {
+        Args: {
+          p_distance_km: number
+          p_end_date: string
+          p_reward_fp: number
+          p_team_id: string
+        }
+        Returns: string
+      }
+      submit_team_challenge_run: {
+        Args: {
+          p_challenge_id: string
+          p_distance_km: number
+          p_duration_seconds: number
+          p_total_fp: number
+        }
+        Returns: undefined
+      }
       update_profile_stats: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
       challenge_invite_status: "pending" | "accepted" | "refused" | "expired"
-      challenge_status: "pending" | "active" | "completed"
+      challenge_status: "pending" | "active" | "completed" | "open"
       fitness_goal: "perdre_poids" | "endurance" | "performance" | "bien_etre"
       fitness_level: "debutant" | "intermediaire" | "avance" | "pro"
       gender_type: "homme" | "femme"
@@ -802,7 +879,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       challenge_invite_status: ["pending", "accepted", "refused", "expired"],
-      challenge_status: ["pending", "active", "completed"],
+      challenge_status: ["pending", "active", "completed", "open"],
       fitness_goal: ["perdre_poids", "endurance", "performance", "bien_etre"],
       fitness_level: ["debutant", "intermediaire", "avance", "pro"],
       gender_type: ["homme", "femme"],
