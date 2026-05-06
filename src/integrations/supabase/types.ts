@@ -534,7 +534,15 @@ export type Database = {
           used_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "purchase_qrcodes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_members: {
         Row: {
@@ -677,6 +685,7 @@ export type Database = {
         Returns: undefined
       }
       expire_old_challenges: { Args: never; Returns: undefined }
+      expire_old_qrcodes: { Args: never; Returns: undefined }
       expire_team_challenges: { Args: never; Returns: undefined }
       finalize_team_challenge: {
         Args: { p_challenge_id: string }
