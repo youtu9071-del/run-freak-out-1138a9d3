@@ -25,7 +25,7 @@ export default function WalletContent() {
     if (!user) return;
     const [{ data: acts }, { data: qrs }] = await Promise.all([
       supabase.from("user_activities").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
-      supabase.from("purchase_qrcodes").select("*, product:products(name, image_url, currency)").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("purchase_qrcodes").select("*, product:products(name, image_url, currency, price)").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
     if (acts) setActivities(acts);
     if (qrs) setQrCodes(qrs);
