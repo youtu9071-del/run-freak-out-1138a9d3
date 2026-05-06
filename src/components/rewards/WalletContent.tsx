@@ -45,6 +45,9 @@ export default function WalletContent() {
         toast.error("Erreur génération PDF");
         return;
       }
+      const cur = qr.product?.currency || "EUR";
+      const sym = cur === "FCFA" ? "FCFA" : cur === "USD" ? "$" : "€";
+      const fmt = (v: number) => cur === "FCFA" ? `${Number(v).toLocaleString()} ${sym}` : `${Number(v).toFixed(2)} ${sym}`;
       const dataUrl = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ unit: "mm", format: "a4" });
       pdf.setFontSize(20);
@@ -53,16 +56,21 @@ export default function WalletContent() {
       pdf.text(qr.product?.name || "Produit", 105, 40, { align: "center" });
       pdf.addImage(dataUrl, "PNG", 65, 55, 80, 80);
       pdf.setFontSize(10);
-      pdf.text(`FP utilisés : ${qr.fp_used}`, 20, 150);
-      pdf.text(`Réduction : ${Number(qr.discount_amount).toFixed(2)}`, 20, 158);
-      pdf.text(`Total : ${Number(qr.total_price).toFixed(2)}`, 20, 166);
-      pdf.text(`Émis le : ${new Date(qr.created_at).toLocaleDateString("fr-FR")}`, 20, 174);
-      if (qr.expires_at) {
-        pdf.text(`Expire le : ${new Date(qr.expires_at).toLocaleDateString("fr-FR")}`, 20, 182);
+      let y = 150;
+      if (qr.product?.price != null) {
+        pdf.text(`Prix article : ${fmt(Number(qr.product.price))}`, 20, y); y += 8;
       }
-      pdf.text(`Statut : ${qr.status}`, 20, 190);
+      pdf.text(`FP utilisés : ${qr.fp_used}`, 20, y); y += 8;
+      pdf.text(`Réduction : ${fmt(Number(qr.discount_amount))}`, 20, y); y += 8;
+      pdf.text(`Total payé : ${fmt(Number(qr.total_price))}`, 20, y); y += 8;
+      pdf.text(`Émis le : ${new Date(qr.created_at).toLocaleDateString("fr-FR")}`, 20, y); y += 8;
+      if (qr.expires_at) {
+        pdf.text(`Expire le : ${new Date(qr.expires_at).toLocaleDateString("fr-FR")}`, 20, y); y += 8;
+      }
+      pdf.text(`Statut : ${qr.status}`, 20, y); y += 8;
+      pdf.text(`ID : ${qr.qr_uid || qr.id}`, 20, y);
       pdf.setFontSize(8);
-      pdf.text("Présentez ce QR code à un administrateur pour récupérer votre produit.", 105, 210, { align: "center" });
+      pdf.text("Présentez ce QR code à un administrateur pour récupérer votre produit.", 105, 215, { align: "center" });
       pdf.save(`qr-${qr.product?.name || "achat"}-${qr.id.slice(0, 8)}.pdf`);
       toast.success("PDF téléchargé");
     } catch (e) {
