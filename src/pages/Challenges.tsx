@@ -55,8 +55,11 @@ export default function Challenges() {
 
   useEffect(() => {
     if (user) {
-      // Auto-expire passed challenges first
-      supabase.rpc("expire_old_challenges" as any).then(() => {
+      // Auto-expire passed challenges (1v1 + team) first
+      Promise.all([
+        supabase.rpc("expire_old_challenges" as any),
+        supabase.rpc("expire_team_challenges" as any),
+      ]).then(() => {
         fetchTeams();
         fetchChallenges();
         fetchPendingInvites();
