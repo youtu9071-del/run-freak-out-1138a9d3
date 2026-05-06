@@ -67,51 +67,31 @@ export default function MarketContent() {
     }
 
     setPurchasing(true);
-    const finalPrice = Math.max(product.price - discount, 0);
 
-    // Generate stable unique scan UID (used in URL & lookup)
-    const scanUid = (crypto.randomUUID() as string).replace(/-/g, "");
-    const scanUrl = `${window.location.origin}/scan/${scanUid}`;
+    // Atomic server-side purchase: validates FP balance, deducts FP, creates QR + order
+    const { data, error } = await supabase.rpc("purchase_with_fp" as any, {
+      p_product_id: product.id,
+      p_fp_to_use: fpUsed,
+    });
 
-    // QR encodes the public scan URL — scanning opens the validation page
-    const qrData = scanUrl;
-
-    // Save QR code with explicit qr_uid so the public scan endpoint can find it
-    const { error: qrError } = await supabase.from("purchase_qrcodes").insert({
-      user_id: user.id,
-      product_id: product.id,
-      fp_used: fpUsed,
-      discount_amount: discount,
-      total_price: finalPrice,
-      qr_data: qrData,
-      qr_uid: scanUid,
-    } as any);
-
-    if (qrError) {
-      toast.error("Erreur lors de l'achat");
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("INSUFFICIENT_FP")) {
+        toast.error("Solde FP non suffisant ❌ — QR code non émis");
+      } else {
+        toast.error("Erreur lors de l'achat");
+      }
       setPurchasing(false);
       return;
     }
 
-    // Deduct FP
-    if (fpUsed > 0) {
-      await supabase.from("profiles").update({
-        total_fp: Math.max((profile.total_fp || 0) - fpUsed, 0),
-      }).eq("user_id", user.id);
-      await refreshProfile();
-    }
+    const row = Array.isArray(data) ? data[0] : data;
+    const scanUid = row?.qr_uid as string;
+    const scanUrl = `${window.location.origin}/scan/${scanUid}`;
 
-    // Save order
-    await supabase.from("orders").insert({
-      user_id: user.id,
-      product_id: product.id,
-      total_price: finalPrice,
-      fp_used: fpUsed,
-      discount_amount: discount,
-    });
-
-    setGeneratedQR(qrData);
-    toast.success("Paiement validé ! 🎉");
+    await refreshProfile();
+    setGeneratedQR(scanUrl);
+    toast.success("Paiement validé ! 🎉 QR code disponible dans Mes QR codes");
     setPurchasing(false);
   };
 

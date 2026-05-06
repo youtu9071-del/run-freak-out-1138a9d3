@@ -677,6 +677,7 @@ export type Database = {
         Returns: undefined
       }
       expire_old_challenges: { Args: never; Returns: undefined }
+      expire_team_challenges: { Args: never; Returns: undefined }
       finalize_team_challenge: {
         Args: { p_challenge_id: string }
         Returns: {
@@ -696,6 +697,17 @@ export type Database = {
       is_team_member: {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
+      }
+      purchase_with_fp: {
+        Args: { p_fp_to_use: number; p_product_id: string }
+        Returns: {
+          discount_amount: number
+          fp_used: number
+          qr_data: string
+          qr_id: string
+          qr_uid: string
+          total_price: number
+        }[]
       }
       scan_qrcode_lookup: {
         Args: { p_uid: string }
@@ -744,7 +756,12 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       challenge_invite_status: "pending" | "accepted" | "refused" | "expired"
-      challenge_status: "pending" | "active" | "completed" | "open"
+      challenge_status:
+        | "pending"
+        | "active"
+        | "completed"
+        | "open"
+        | "cancelled"
       fitness_goal: "perdre_poids" | "endurance" | "performance" | "bien_etre"
       fitness_level: "debutant" | "intermediaire" | "avance" | "pro"
       gender_type: "homme" | "femme"
@@ -879,7 +896,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       challenge_invite_status: ["pending", "accepted", "refused", "expired"],
-      challenge_status: ["pending", "active", "completed", "open"],
+      challenge_status: ["pending", "active", "completed", "open", "cancelled"],
       fitness_goal: ["perdre_poids", "endurance", "performance", "bien_etre"],
       fitness_level: ["debutant", "intermediaire", "avance", "pro"],
       gender_type: ["homme", "femme"],
