@@ -213,7 +213,12 @@ export default function MarketContent() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Présentez ce QR code à l'administrateur pour récupérer votre produit.
-                Retrouvez-le dans votre portefeuille.
+              </p>
+              <p className="text-[11px] text-primary font-bold">
+                ✅ Enregistré automatiquement dans Portefeuille → Mes QR codes
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Téléchargeable en PDF depuis ton portefeuille.
               </p>
               <Button variant="outline" onClick={() => { setSelectedProduct(null); setGeneratedQR(null); }}>
                 Fermer
