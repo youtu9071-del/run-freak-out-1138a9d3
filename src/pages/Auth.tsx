@@ -2,7 +2,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Zap, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import freakoutLogo from "@/assets/freakout-logo.png";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -45,10 +46,8 @@ export default function Auth() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-8"
       >
-        <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4 neon-glow-strong">
-          <Zap className="w-8 h-8 text-primary-foreground" />
-        </div>
-        <h1 className="font-display font-black text-3xl text-foreground">FREAK OUT</h1>
+        <img src={freakoutLogo} alt="FREAK OUT logo" className="w-32 h-32 object-contain mx-auto mb-2 drop-shadow-[0_0_30px_hsl(145_80%_50%/0.4)]" />
+        <h1 className="sr-only">FREAK OUT</h1>
         <p className="text-sm text-muted-foreground mt-1">
           {isLogin ? "Content de te revoir !" : "Rejoins la communauté 🔥"}
         </p>
