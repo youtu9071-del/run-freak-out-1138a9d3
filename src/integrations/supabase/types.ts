@@ -16,37 +16,58 @@ export type Database = {
     Tables: {
       challenge_invites: {
         Row: {
+          challenge_level: string | null
           challenged_id: string
           challenger_id: string
+          coffre_amount: number
+          coffre_fee: number
+          completed_at: string | null
           created_at: string
           distance_km: number
           expires_at: string
           id: string
           responded_at: string | null
           scheduled_date: string | null
+          stake_fp: number
           status: Database["public"]["Enums"]["challenge_invite_status"]
+          winner_id: string | null
+          winner_reward: number
         }
         Insert: {
+          challenge_level?: string | null
           challenged_id: string
           challenger_id: string
+          coffre_amount?: number
+          coffre_fee?: number
+          completed_at?: string | null
           created_at?: string
           distance_km?: number
           expires_at?: string
           id?: string
           responded_at?: string | null
           scheduled_date?: string | null
+          stake_fp?: number
           status?: Database["public"]["Enums"]["challenge_invite_status"]
+          winner_id?: string | null
+          winner_reward?: number
         }
         Update: {
+          challenge_level?: string | null
           challenged_id?: string
           challenger_id?: string
+          coffre_amount?: number
+          coffre_fee?: number
+          completed_at?: string | null
           created_at?: string
           distance_km?: number
           expires_at?: string
           id?: string
           responded_at?: string | null
           scheduled_date?: string | null
+          stake_fp?: number
           status?: Database["public"]["Enums"]["challenge_invite_status"]
+          winner_id?: string | null
+          winner_reward?: number
         }
         Relationships: []
       }
@@ -137,12 +158,15 @@ export type Database = {
       }
       challenges: {
         Row: {
+          coffre_amount: number
+          coffre_fee: number
           created_at: string | null
           distance_km: number
           end_date: string | null
           id: string
           max_members: number | null
           reward_fp: number
+          stake_fp: number
           start_date: string | null
           status: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time: number | null
@@ -150,15 +174,19 @@ export type Database = {
           team_b_avg_time: number | null
           team_b_id: string | null
           time_limit_hours: number | null
+          winner_reward: number
           winner_team_id: string | null
         }
         Insert: {
+          coffre_amount?: number
+          coffre_fee?: number
           created_at?: string | null
           distance_km?: number
           end_date?: string | null
           id?: string
           max_members?: number | null
           reward_fp?: number
+          stake_fp?: number
           start_date?: string | null
           status?: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time?: number | null
@@ -166,15 +194,19 @@ export type Database = {
           team_b_avg_time?: number | null
           team_b_id?: string | null
           time_limit_hours?: number | null
+          winner_reward?: number
           winner_team_id?: string | null
         }
         Update: {
+          coffre_amount?: number
+          coffre_fee?: number
           created_at?: string | null
           distance_km?: number
           end_date?: string | null
           id?: string
           max_members?: number | null
           reward_fp?: number
+          stake_fp?: number
           start_date?: string | null
           status?: Database["public"]["Enums"]["challenge_status"] | null
           team_a_avg_time?: number | null
@@ -182,6 +214,7 @@ export type Database = {
           team_b_avg_time?: number | null
           team_b_id?: string | null
           time_limit_hours?: number | null
+          winner_reward?: number
           winner_team_id?: string | null
         }
         Relationships: [
@@ -680,13 +713,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_duel_invite: { Args: { p_invite_id: string }; Returns: undefined }
       accept_team_challenge: {
         Args: { p_challenge_id: string; p_team_id: string }
         Returns: undefined
       }
+      create_duel_invite: {
+        Args: {
+          p_challenged: string
+          p_distance: number
+          p_level: string
+          p_scheduled?: string
+        }
+        Returns: string
+      }
+      duel_level_stake: { Args: { p_level: string }; Returns: number }
       expire_old_challenges: { Args: never; Returns: undefined }
       expire_old_qrcodes: { Args: never; Returns: undefined }
       expire_team_challenges: { Args: never; Returns: undefined }
+      finalize_duel: {
+        Args: { p_invite_id: string; p_winner_id: string }
+        Returns: undefined
+      }
       finalize_team_challenge: {
         Args: { p_challenge_id: string }
         Returns: {
@@ -718,6 +766,7 @@ export type Database = {
           total_price: number
         }[]
       }
+      refuse_duel_invite: { Args: { p_invite_id: string }; Returns: undefined }
       scan_qrcode_lookup: {
         Args: { p_uid: string }
         Returns: {
@@ -746,7 +795,7 @@ export type Database = {
         Args: {
           p_distance_km: number
           p_end_date: string
-          p_reward_fp: number
+          p_stake_fp: number
           p_team_id: string
         }
         Returns: string
