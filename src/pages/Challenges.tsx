@@ -849,7 +849,7 @@ export default function Challenges() {
                 <button onClick={() => setAcceptChallenge(null)}><X className="w-4 h-4" /></button>
               </div>
               <p className="text-sm text-muted-foreground">
-                Choisis ton équipe ({acceptChallenge.requiredSize} joueurs requis) — {acceptChallenge.distance_km} km · {acceptChallenge.reward_fp} FP
+                Choisis ton équipe ({acceptChallenge.requiredSize} joueurs requis) — {acceptChallenge.distance_km} km · Mise {acceptChallenge.stake_fp ?? 0} FP/membre · Coffre actuel {Number(acceptChallenge.coffre_amount ?? 0).toFixed(0)} FP
               </p>
               {myCaptainTeamsOfSize(acceptChallenge.requiredSize).length === 0 ? (
                 <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive">
