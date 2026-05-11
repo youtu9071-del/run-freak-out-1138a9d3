@@ -401,9 +401,10 @@ export default function Challenges() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div className="flex items-center gap-1 text-muted-foreground"><Shield className="w-3 h-3" />{ch.distance_km} km</div>
-                        <div className="flex items-center gap-1 text-primary"><Trophy className="w-3 h-3" />{ch.reward_fp} FP</div>
-                        <div className="flex items-center gap-1 text-muted-foreground"><Users className="w-3 h-3" />{sizeA}v{sizeA}</div>
+                        <div className="flex items-center gap-1 text-accent"><Trophy className="w-3 h-3" />Mise {ch.stake_fp ?? 0} FP/membre</div>
+                        <div className="flex items-center gap-1 text-primary">🔒 Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</div>
                       </div>
+                      <div className="text-[10px] text-muted-foreground">Équipe : {sizeA}v{sizeA}</div>
                       {ch.end_date && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
                           <Calendar className="w-3 h-3" />
