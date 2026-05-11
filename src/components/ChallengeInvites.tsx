@@ -178,7 +178,15 @@ export default function ChallengeInvites() {
                 <p className="font-display font-bold text-sm truncate">
                   {invite.challenger_profile?.username || "Inconnu"} te défie !
                 </p>
-                <p className="text-xs text-muted-foreground">{invite.distance_km} km</p>
+                <p className="text-xs text-muted-foreground">
+                  {invite.distance_km} km
+                  {invite.challenge_level && <span className="ml-2 text-accent font-bold">[{invite.challenge_level}]</span>}
+                </p>
+                {invite.stake_fp ? (
+                  <p className="text-[10px] text-primary mt-0.5">
+                    🔒 Mise {invite.stake_fp} FP requise · Coffre total {Number(invite.coffre_amount ?? 0) + invite.stake_fp} FP
+                  </p>
+                ) : null}
                 {invite.scheduled_date && (
                   <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
                     <Calendar className="w-3 h-3" />
