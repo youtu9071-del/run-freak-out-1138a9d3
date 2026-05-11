@@ -137,17 +137,25 @@ export default function Challenges() {
 
   const handleLaunchChallenge = async () => {
     if (!launchTeam || !user) return;
+    if (launchDistance > 10 || launchDistance < 1) {
+      toast.error("Distance entre 1 et 10 km");
+      return;
+    }
+    if (launchReward < 0) {
+      toast.error("Mise invalide");
+      return;
+    }
     setLaunching(true);
     const endIso = launchEnd ? new Date(launchEnd).toISOString() : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
     const { error } = await supabase.rpc("start_team_challenge" as any, {
       p_team_id: launchTeam.id,
       p_distance_km: launchDistance,
-      p_reward_fp: launchReward,
+      p_stake_fp: launchReward,
       p_end_date: endIso,
     });
     setLaunching(false);
     if (error) { toast.error(error.message || "Erreur"); return; }
-    toast.success("Défi lancé ! En attente d'un adversaire ⚔️");
+    toast.success("Défi lancé ! Mise prélevée à chaque membre 🔒");
     setLaunchTeam(null); setLaunchEnd("");
     fetchChallenges();
   };
