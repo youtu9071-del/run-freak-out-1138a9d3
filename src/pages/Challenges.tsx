@@ -27,7 +27,7 @@ export default function Challenges() {
   // Launch challenge dialog
   const [launchTeam, setLaunchTeam] = useState<any | null>(null);
   const [launchDistance, setLaunchDistance] = useState(5);
-  const [launchReward, setLaunchReward] = useState(50);
+  const [launchReward, setLaunchReward] = useState(5);
   const [launchEnd, setLaunchEnd] = useState("");
   const [launching, setLaunching] = useState(false);
 
@@ -137,17 +137,25 @@ export default function Challenges() {
 
   const handleLaunchChallenge = async () => {
     if (!launchTeam || !user) return;
+    if (launchDistance > 10 || launchDistance < 1) {
+      toast.error("Distance entre 1 et 10 km");
+      return;
+    }
+    if (launchReward < 0) {
+      toast.error("Mise invalide");
+      return;
+    }
     setLaunching(true);
     const endIso = launchEnd ? new Date(launchEnd).toISOString() : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
     const { error } = await supabase.rpc("start_team_challenge" as any, {
       p_team_id: launchTeam.id,
       p_distance_km: launchDistance,
-      p_reward_fp: launchReward,
+      p_stake_fp: launchReward,
       p_end_date: endIso,
     });
     setLaunching(false);
     if (error) { toast.error(error.message || "Erreur"); return; }
-    toast.success("Défi lancé ! En attente d'un adversaire ⚔️");
+    toast.success("Défi lancé ! Mise prélevée à chaque membre 🔒");
     setLaunchTeam(null); setLaunchEnd("");
     fetchChallenges();
   };
@@ -393,9 +401,10 @@ export default function Challenges() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div className="flex items-center gap-1 text-muted-foreground"><Shield className="w-3 h-3" />{ch.distance_km} km</div>
-                        <div className="flex items-center gap-1 text-primary"><Trophy className="w-3 h-3" />{ch.reward_fp} FP</div>
-                        <div className="flex items-center gap-1 text-muted-foreground"><Users className="w-3 h-3" />{sizeA}v{sizeA}</div>
+                        <div className="flex items-center gap-1 text-accent"><Trophy className="w-3 h-3" />Mise {ch.stake_fp ?? 0} FP/membre</div>
+                        <div className="flex items-center gap-1 text-primary">🔒 Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</div>
                       </div>
+                      <div className="text-[10px] text-muted-foreground">Équipe : {sizeA}v{sizeA}</div>
                       {ch.end_date && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
                           <Calendar className="w-3 h-3" />
@@ -445,9 +454,10 @@ export default function Challenges() {
                       <span className="text-xs text-muted-foreground">vs</span>
                       <span className="font-display font-bold text-sm">{ch.team_b?.name}</span>
                     </div>
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-xs flex-wrap gap-2">
                       <span className="text-muted-foreground flex items-center gap-1"><Shield className="w-3 h-3" />{ch.distance_km} km</span>
-                      <span className="text-primary flex items-center gap-1"><Trophy className="w-3 h-3" />{ch.reward_fp} FP</span>
+                      <span className="text-accent flex items-center gap-1">Mise {ch.stake_fp ?? 0} FP</span>
+                      <span className="text-primary flex items-center gap-1"><Trophy className="w-3 h-3" />Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
@@ -518,7 +528,7 @@ export default function Challenges() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{ch.distance_km} km · {ch.reward_fp} FP</span>
+                      <span className="text-muted-foreground">{ch.distance_km} km · Mise {ch.stake_fp ?? 0} FP · Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</span>
                       <span className="text-primary font-bold">🏆 {winnerName}</span>
                     </div>
                   </div>
@@ -592,7 +602,7 @@ export default function Challenges() {
                     {isCreator && (
                       <div className="space-y-2">
                         <button
-                          onClick={() => { setLaunchTeam(team); setLaunchDistance(5); setLaunchReward(50); setLaunchEnd(""); }}
+                          onClick={() => { setLaunchTeam(team); setLaunchDistance(5); setLaunchReward(5); setLaunchEnd(""); }}
                           className="w-full flex items-center justify-center gap-1 rounded-lg gradient-primary py-2 text-xs font-bold text-primary-foreground neon-glow"
                         >
                           <Rocket className="w-3 h-3" /> Lancer un défi avec cette équipe
@@ -793,9 +803,9 @@ export default function Challenges() {
                 <button onClick={() => setLaunchTeam(null)}><X className="w-4 h-4" /></button>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Distance (km)</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Distance (km, max 10)</label>
                 <div className="flex gap-2">
-                  {[3, 5, 10, 21].map((d) => (
+                  {[3, 5, 7, 10].map((d) => (
                     <button key={d} onClick={() => setLaunchDistance(d)}
                       className={`flex-1 py-2 rounded-lg text-sm font-bold ${launchDistance === d ? "gradient-primary text-primary-foreground" : "bg-secondary"}`}>
                       {d}
@@ -804,9 +814,12 @@ export default function Challenges() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Récompense FP (pour chaque vainqueur)</label>
-                <input type="number" min={10} max={500} value={launchReward} onChange={(e) => setLaunchReward(Number(e.target.value))}
+                <label className="text-xs text-muted-foreground mb-1 block">Mise FP par membre (obligatoire pour participer)</label>
+                <input type="number" min={0} max={500} value={launchReward} onChange={(e) => setLaunchReward(Number(e.target.value))}
                   className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Chaque membre de ton équipe doit avoir au moins {launchReward} FP. Total coffre côté A : {launchReward * (launchTeam.members?.filter((m: any) => m.status === "accepted").length || 0)} FP
+                </p>
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Date de fin</label>
@@ -836,7 +849,7 @@ export default function Challenges() {
                 <button onClick={() => setAcceptChallenge(null)}><X className="w-4 h-4" /></button>
               </div>
               <p className="text-sm text-muted-foreground">
-                Choisis ton équipe ({acceptChallenge.requiredSize} joueurs requis) — {acceptChallenge.distance_km} km · {acceptChallenge.reward_fp} FP
+                Choisis ton équipe ({acceptChallenge.requiredSize} joueurs requis) — {acceptChallenge.distance_km} km · Mise {acceptChallenge.stake_fp ?? 0} FP/membre · Coffre actuel {Number(acceptChallenge.coffre_amount ?? 0).toFixed(0)} FP
               </p>
               {myCaptainTeamsOfSize(acceptChallenge.requiredSize).length === 0 ? (
                 <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive">

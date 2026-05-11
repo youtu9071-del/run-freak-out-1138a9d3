@@ -19,6 +19,9 @@ interface Invite {
   created_at: string;
   expires_at: string;
   scheduled_date?: string | null;
+  challenge_level?: string | null;
+  stake_fp?: number;
+  coffre_amount?: number;
   challenger_profile?: { username: string; avatar_url: string | null };
 }
 
@@ -92,17 +95,13 @@ export default function ChallengeInvites() {
   };
 
   const handleAccept = async (invite: Invite) => {
-    const { error } = await supabase
-      .from("challenge_invites")
-      .update({ status: "accepted" as any, responded_at: new Date().toISOString() })
-      .eq("id", invite.id);
-
+    const { error } = await supabase.rpc("accept_duel_invite" as any, { p_invite_id: invite.id });
     if (error) {
-      toast.error("Erreur");
+      toast.error(error.message || "Erreur");
       return;
     }
     setInvites((prev) => prev.filter((i) => i.id !== invite.id));
-    toast.success("Défi accepté ! La course commence 🔥");
+    toast.success(`Défi accepté ! ${invite.stake_fp ?? 0} FP placés dans le coffre 🔒`);
     setTimeout(() => navigate("/activity"), 600);
   };
 
@@ -116,18 +115,14 @@ export default function ChallengeInvites() {
     const trimmed = refuseMessage.trim().slice(0, MAX_REFUSAL_MESSAGE);
 
     setRefusing(true);
-    const { error } = await supabase
-      .from("challenge_invites")
-      .update({ status: "refused" as any, responded_at: new Date().toISOString() })
-      .eq("id", refuseInvite.id);
+    const { error } = await supabase.rpc("refuse_duel_invite" as any, { p_invite_id: refuseInvite.id });
 
     if (error) {
-      toast.error("Erreur");
+      toast.error(error.message || "Erreur");
       setRefusing(false);
       return;
     }
 
-    // Notify the challenger
     const { data: meProfile } = await supabase
       .from("profiles")
       .select("username")
@@ -147,7 +142,7 @@ export default function ChallengeInvites() {
     });
 
     setInvites((prev) => prev.filter((i) => i.id !== refuseInvite.id));
-    toast.success("Défi refusé");
+    toast.success("Défi refusé · mise remboursée à l'adversaire");
     setRefuseInvite(null);
     setRefuseMessage("");
     setRefusing(false);
@@ -183,7 +178,15 @@ export default function ChallengeInvites() {
                 <p className="font-display font-bold text-sm truncate">
                   {invite.challenger_profile?.username || "Inconnu"} te défie !
                 </p>
-                <p className="text-xs text-muted-foreground">{invite.distance_km} km</p>
+                <p className="text-xs text-muted-foreground">
+                  {invite.distance_km} km
+                  {invite.challenge_level && <span className="ml-2 text-accent font-bold">[{invite.challenge_level}]</span>}
+                </p>
+                {invite.stake_fp ? (
+                  <p className="text-[10px] text-primary mt-0.5">
+                    🔒 Mise {invite.stake_fp} FP requise · Coffre total {Number(invite.coffre_amount ?? 0) + invite.stake_fp} FP
+                  </p>
+                ) : null}
                 {invite.scheduled_date && (
                   <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
                     <Calendar className="w-3 h-3" />
