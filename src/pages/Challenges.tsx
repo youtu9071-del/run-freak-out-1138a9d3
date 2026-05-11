@@ -602,7 +602,7 @@ export default function Challenges() {
                     {isCreator && (
                       <div className="space-y-2">
                         <button
-                          onClick={() => { setLaunchTeam(team); setLaunchDistance(5); setLaunchReward(50); setLaunchEnd(""); }}
+                          onClick={() => { setLaunchTeam(team); setLaunchDistance(5); setLaunchReward(5); setLaunchEnd(""); }}
                           className="w-full flex items-center justify-center gap-1 rounded-lg gradient-primary py-2 text-xs font-bold text-primary-foreground neon-glow"
                         >
                           <Rocket className="w-3 h-3" /> Lancer un défi avec cette équipe
