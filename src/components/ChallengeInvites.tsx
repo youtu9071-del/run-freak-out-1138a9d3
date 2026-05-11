@@ -19,6 +19,9 @@ interface Invite {
   created_at: string;
   expires_at: string;
   scheduled_date?: string | null;
+  challenge_level?: string | null;
+  stake_fp?: number;
+  coffre_amount?: number;
   challenger_profile?: { username: string; avatar_url: string | null };
 }
 
