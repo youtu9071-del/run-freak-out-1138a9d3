@@ -194,12 +194,34 @@ export default function UserProfile() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Envoie un défi 1v1 ! L'adversaire a 3 jours pour répondre.
+              Défi 1v1 sécurisé. Mise prélevée immédiatement et placée dans le coffre 🔒.
             </p>
+            <div>
+              <label className="text-xs text-muted-foreground mb-2 block">Niveau du défi (mise FP obligatoire)</label>
+              <div className="grid grid-cols-2 gap-2">
+                {DUEL_LEVELS.map((l) => (
+                  <button
+                    key={l.name}
+                    onClick={() => setChallengeLevel(l.name)}
+                    className={`py-2 px-2 rounded-xl text-[11px] font-bold transition-all ${
+                      challengeLevel === l.name
+                        ? "gradient-accent text-accent-foreground accent-glow"
+                        : "bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {l.name}
+                    <div className="text-[10px] opacity-80">{l.stake} FP</div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
+                Mise actuelle : <span className="text-accent font-bold">{selectedStake} FP</span> · Coffre total après acceptation : <span className="text-primary font-bold">{selectedStake * 2} FP</span> · Frais plateforme : 1 FP · Vainqueur reçoit : <span className="text-primary font-bold">{selectedStake * 2 - 1} FP</span>
+              </p>
+            </div>
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">Distance du défi</label>
               <div className="flex gap-2">
-                {[3, 5, 10, 15].map((d) => (
+                {[3, 5, 7, 10].map((d) => (
                   <button
                     key={d}
                     onClick={() => setChallengeDistance(d)}
@@ -229,23 +251,23 @@ export default function UserProfile() {
               onClick={async () => {
                 if (!user || !id) return;
                 setSending(true);
-                const { error } = await supabase.from("challenge_invites").insert({
-                  challenger_id: user.id,
-                  challenged_id: id,
-                  distance_km: challengeDistance,
-                  scheduled_date: new Date(challengeDate).toISOString(),
-                } as any);
+                const { error } = await supabase.rpc("create_duel_invite" as any, {
+                  p_challenged: id,
+                  p_distance: challengeDistance,
+                  p_level: challengeLevel,
+                  p_scheduled: new Date(challengeDate).toISOString(),
+                });
                 if (error) {
-                  toast.error("Erreur lors de l'envoi du défi");
+                  toast.error(error.message || "Erreur lors de l'envoi");
                 } else {
-                  toast.success("Défi envoyé ! ⚔️");
+                  toast.success(`Défi envoyé ! ${selectedStake} FP prélevés 🔒`);
                   setChallengeOpen(false);
                 }
                 setSending(false);
               }}
               className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50"
             >
-              {sending ? "Envoi..." : "ENVOYER LE DÉFI"}
+              {sending ? "Envoi..." : `MISER ${selectedStake} FP & DÉFIER`}
             </button>
           </div>
         </DialogContent>
