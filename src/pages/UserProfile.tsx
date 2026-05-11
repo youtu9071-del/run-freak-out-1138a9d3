@@ -22,12 +22,24 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeDistance, setChallengeDistance] = useState(5);
+  const [challengeLevel, setChallengeLevel] = useState<string>("ROOKIE I");
   const [challengeDate, setChallengeDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+    return d.toISOString().slice(0, 16);
   });
   const [sending, setSending] = useState(false);
+
+  const DUEL_LEVELS: { name: string; stake: number }[] = [
+    { name: "ROOKIE I", stake: 5 },
+    { name: "ROOKIE II", stake: 10 },
+    { name: "STREET RACER", stake: 15 },
+    { name: "PRO RACER", stake: 20 },
+    { name: "ELITE RACER", stake: 30 },
+    { name: "LEGEND RACER", stake: 40 },
+    { name: "FREAK MASTER", stake: 50 },
+  ];
+  const selectedStake = DUEL_LEVELS.find((l) => l.name === challengeLevel)?.stake ?? 5;
 
   useEffect(() => {
     if (!id) return;
