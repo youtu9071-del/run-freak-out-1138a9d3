@@ -454,9 +454,10 @@ export default function Challenges() {
                       <span className="text-xs text-muted-foreground">vs</span>
                       <span className="font-display font-bold text-sm">{ch.team_b?.name}</span>
                     </div>
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-xs flex-wrap gap-2">
                       <span className="text-muted-foreground flex items-center gap-1"><Shield className="w-3 h-3" />{ch.distance_km} km</span>
-                      <span className="text-primary flex items-center gap-1"><Trophy className="w-3 h-3" />{ch.reward_fp} FP</span>
+                      <span className="text-accent flex items-center gap-1">Mise {ch.stake_fp ?? 0} FP</span>
+                      <span className="text-primary flex items-center gap-1"><Trophy className="w-3 h-3" />Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
