@@ -27,7 +27,7 @@ export default function Challenges() {
   // Launch challenge dialog
   const [launchTeam, setLaunchTeam] = useState<any | null>(null);
   const [launchDistance, setLaunchDistance] = useState(5);
-  const [launchReward, setLaunchReward] = useState(50);
+  const [launchReward, setLaunchReward] = useState(5);
   const [launchEnd, setLaunchEnd] = useState("");
   const [launching, setLaunching] = useState(false);
 
