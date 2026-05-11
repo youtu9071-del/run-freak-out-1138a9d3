@@ -95,17 +95,13 @@ export default function ChallengeInvites() {
   };
 
   const handleAccept = async (invite: Invite) => {
-    const { error } = await supabase
-      .from("challenge_invites")
-      .update({ status: "accepted" as any, responded_at: new Date().toISOString() })
-      .eq("id", invite.id);
-
+    const { error } = await supabase.rpc("accept_duel_invite" as any, { p_invite_id: invite.id });
     if (error) {
-      toast.error("Erreur");
+      toast.error(error.message || "Erreur");
       return;
     }
     setInvites((prev) => prev.filter((i) => i.id !== invite.id));
-    toast.success("Défi accepté ! La course commence 🔥");
+    toast.success(`Défi accepté ! ${invite.stake_fp ?? 0} FP placés dans le coffre 🔒`);
     setTimeout(() => navigate("/activity"), 600);
   };
 
@@ -119,18 +115,14 @@ export default function ChallengeInvites() {
     const trimmed = refuseMessage.trim().slice(0, MAX_REFUSAL_MESSAGE);
 
     setRefusing(true);
-    const { error } = await supabase
-      .from("challenge_invites")
-      .update({ status: "refused" as any, responded_at: new Date().toISOString() })
-      .eq("id", refuseInvite.id);
+    const { error } = await supabase.rpc("refuse_duel_invite" as any, { p_invite_id: refuseInvite.id });
 
     if (error) {
-      toast.error("Erreur");
+      toast.error(error.message || "Erreur");
       setRefusing(false);
       return;
     }
 
-    // Notify the challenger
     const { data: meProfile } = await supabase
       .from("profiles")
       .select("username")
@@ -150,7 +142,7 @@ export default function ChallengeInvites() {
     });
 
     setInvites((prev) => prev.filter((i) => i.id !== refuseInvite.id));
-    toast.success("Défi refusé");
+    toast.success("Défi refusé · mise remboursée à l'adversaire");
     setRefuseInvite(null);
     setRefuseMessage("");
     setRefusing(false);
