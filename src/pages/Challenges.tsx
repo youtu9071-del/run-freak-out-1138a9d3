@@ -801,9 +801,9 @@ export default function Challenges() {
                 <button onClick={() => setLaunchTeam(null)}><X className="w-4 h-4" /></button>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Distance (km)</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Distance (km, max 10)</label>
                 <div className="flex gap-2">
-                  {[3, 5, 10, 21].map((d) => (
+                  {[3, 5, 7, 10].map((d) => (
                     <button key={d} onClick={() => setLaunchDistance(d)}
                       className={`flex-1 py-2 rounded-lg text-sm font-bold ${launchDistance === d ? "gradient-primary text-primary-foreground" : "bg-secondary"}`}>
                       {d}
@@ -812,9 +812,12 @@ export default function Challenges() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Récompense FP (pour chaque vainqueur)</label>
-                <input type="number" min={10} max={500} value={launchReward} onChange={(e) => setLaunchReward(Number(e.target.value))}
+                <label className="text-xs text-muted-foreground mb-1 block">Mise FP par membre (obligatoire pour participer)</label>
+                <input type="number" min={0} max={500} value={launchReward} onChange={(e) => setLaunchReward(Number(e.target.value))}
                   className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Chaque membre de ton équipe doit avoir au moins {launchReward} FP. Total coffre côté A : {launchReward * (launchTeam.members?.filter((m: any) => m.status === "accepted").length || 0)} FP
+                </p>
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Date de fin</label>
