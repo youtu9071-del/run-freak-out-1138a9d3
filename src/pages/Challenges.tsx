@@ -528,7 +528,7 @@ export default function Challenges() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{ch.distance_km} km · {ch.reward_fp} FP</span>
+                      <span className="text-muted-foreground">{ch.distance_km} km · Mise {ch.stake_fp ?? 0} FP · Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</span>
                       <span className="text-primary font-bold">🏆 {winnerName}</span>
                     </div>
                   </div>
