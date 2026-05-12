@@ -33,13 +33,26 @@ export default function UserProfile() {
   const DUEL_LEVELS: { name: string; stake: number }[] = [
     { name: "ROOKIE I", stake: 5 },
     { name: "ROOKIE II", stake: 10 },
-    { name: "STREET RACER", stake: 15 },
-    { name: "PRO RACER", stake: 20 },
-    { name: "ELITE RACER", stake: 30 },
-    { name: "LEGEND RACER", stake: 40 },
-    { name: "FREAK MASTER", stake: 50 },
+    { name: "ROOKIE III", stake: 15 },
+    { name: "GUERRIER DES PAVÉS I", stake: 20 },
+    { name: "GUERRIER DES PAVÉS II", stake: 25 },
+    { name: "GUERRIER DES PAVÉS III", stake: 30 },
+    { name: "MACHINE DE GUERRE I", stake: 40 },
+    { name: "MACHINE DE GUERRE II", stake: 45 },
+    { name: "MACHINE DE GUERRE III", stake: 50 },
+    { name: "FREAK I", stake: 60 },
+    { name: "FREAK II", stake: 65 },
+    { name: "FREAK III", stake: 70 },
+    { name: "FREAK MASTER", stake: 80 },
   ];
   const selectedStake = DUEL_LEVELS.find((l) => l.name === challengeLevel)?.stake ?? 5;
+
+  useEffect(() => {
+    if (profile) {
+      const level = getLevel(profile.total_km || 0);
+      setChallengeLevel(level.name);
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!id) return;
