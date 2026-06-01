@@ -87,9 +87,10 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="mt-3">
+        <button onClick={() => navigate("/levels")} className="mt-3 transition-transform active:scale-95">
           <LevelBadge totalKm={totalKm} size="lg" />
-        </div>
+          <p className="text-[10px] text-muted-foreground mt-1">Voir tous les rangs →</p>
+        </button>
       </motion.div>
 
       {/* Challenge Invites */}

@@ -11,6 +11,7 @@ import ActivityScreen from "./pages/ActivityScreen";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import Challenges from "./pages/Challenges";
+import Levels from "./pages/Levels";
 import Rewards from "./pages/Rewards";
 import Social from "./pages/Social";
 import Auth from "./pages/Auth";
@@ -55,6 +56,7 @@ function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/user/:id" element={<UserProfile />} />
         <Route path="/challenges" element={<Challenges />} />
+        <Route path="/levels" element={<Levels />} />
         <Route path="/rewards" element={<Rewards />} />
         <Route path="/social" element={<Social />} />
         <Route path="*" element={<NotFound />} />
