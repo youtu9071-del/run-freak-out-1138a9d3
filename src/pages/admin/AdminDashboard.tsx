@@ -3,11 +3,12 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Calendar, ShoppingBag, Users, LogOut, QrCode } from "lucide-react";
+import { Shield, Calendar, ShoppingBag, Users, LogOut, QrCode, Swords } from "lucide-react";
 import AdminEvents from "./AdminEvents";
 import AdminProducts from "./AdminProducts";
 import AdminUsers from "./AdminUsers";
 import AdminQRScanner from "./AdminQRScanner";
+import AdminChallenges from "./AdminChallenges";
 
 export default function AdminDashboard() {
   const { isAdmin, loading } = useAdmin();
@@ -39,7 +40,7 @@ export default function AdminDashboard() {
 
       <div className="max-w-6xl mx-auto p-6">
         <Tabs defaultValue="events">
-          <TabsList className="w-full grid grid-cols-4 mb-6">
+          <TabsList className="w-full grid grid-cols-5 mb-6">
             <TabsTrigger value="events" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" /> Événements
             </TabsTrigger>
@@ -52,12 +53,16 @@ export default function AdminDashboard() {
             <TabsTrigger value="qrcodes" className="flex items-center gap-2">
               <QrCode className="w-4 h-4" /> QR Codes
             </TabsTrigger>
+            <TabsTrigger value="challenges" className="flex items-center gap-2">
+              <Swords className="w-4 h-4" /> Défis
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="events"><AdminEvents /></TabsContent>
           <TabsContent value="products"><AdminProducts /></TabsContent>
           <TabsContent value="users"><AdminUsers /></TabsContent>
           <TabsContent value="qrcodes"><AdminQRScanner /></TabsContent>
+          <TabsContent value="challenges"><AdminChallenges /></TabsContent>
         </Tabs>
       </div>
     </div>

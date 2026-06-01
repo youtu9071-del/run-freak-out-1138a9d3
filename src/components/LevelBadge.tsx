@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { getLevel, getLevelProgress } from "@/lib/gamification";
+import { RANK_LOGOS } from "@/lib/rankLogos";
 
 interface LevelBadgeProps {
   totalKm: number;
@@ -10,11 +11,12 @@ interface LevelBadgeProps {
 export default function LevelBadge({ totalKm, size = "md", showProgress = true }: LevelBadgeProps) {
   const level = getLevel(totalKm);
   const progress = getLevelProgress(totalKm);
+  const logo = RANK_LOGOS[level.name];
 
   const sizes = {
-    sm: { ring: 48, stroke: 3, text: "text-[8px]" },
-    md: { ring: 72, stroke: 4, text: "text-[10px]" },
-    lg: { ring: 100, stroke: 5, text: "text-xs" },
+    sm: { ring: 48, stroke: 3, text: "text-[8px]", img: 32 },
+    md: { ring: 72, stroke: 4, text: "text-[10px]", img: 52 },
+    lg: { ring: 104, stroke: 5, text: "text-xs", img: 80 },
   };
 
   const s = sizes[size];
@@ -22,18 +24,24 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
   const circumference = 2 * Math.PI * r;
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       <div className="relative" style={{ width: s.ring, height: s.ring }}>
-        <svg width={s.ring} height={s.ring} className="-rotate-90">
-          <circle
-            cx={s.ring / 2}
-            cy={s.ring / 2}
-            r={r}
-            fill="none"
-            stroke="hsl(var(--muted))"
-            strokeWidth={s.stroke}
-          />
-          {showProgress && (
+        {/* Glow halo */}
+        <div
+          className="absolute inset-0 rounded-full blur-xl opacity-60 pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${level.color} 0%, transparent 70%)` }}
+        />
+        {showProgress && (
+          <svg width={s.ring} height={s.ring} className="-rotate-90 absolute inset-0">
+            <circle
+              cx={s.ring / 2}
+              cy={s.ring / 2}
+              r={r}
+              fill="none"
+              stroke="hsl(var(--muted))"
+              strokeWidth={s.stroke}
+              opacity={0.3}
+            />
             <motion.circle
               cx={s.ring / 2}
               cy={s.ring / 2}
@@ -46,16 +54,33 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
               initial={{ strokeDashoffset: circumference }}
               animate={{ strokeDashoffset: circumference * (1 - progress / 100) }}
               transition={{ duration: 1.2, ease: "easeOut" }}
+              style={{ filter: `drop-shadow(0 0 4px ${level.color})` }}
             />
-          )}
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`font-display font-black ${s.text}`} style={{ color: level.color }}>
-            {level.tier}
-          </span>
-        </div>
+          </svg>
+        )}
+        {logo && (
+          <motion.img
+            key={level.name}
+            src={logo}
+            alt={level.name}
+            initial={{ scale: 0.6, opacity: 0, rotateY: -20 }}
+            animate={{ scale: 1, opacity: 1, rotateY: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="absolute object-contain"
+            style={{
+              width: s.img,
+              height: s.img,
+              top: (s.ring - s.img) / 2,
+              left: (s.ring - s.img) / 2,
+              filter: `drop-shadow(0 0 6px ${level.color})`,
+            }}
+          />
+        )}
       </div>
-      <span className={`font-display font-bold ${s.text} text-center leading-tight max-w-[100px]`} style={{ color: level.color }}>
+      <span
+        className={`font-display font-bold ${s.text} text-center leading-tight max-w-[120px] uppercase tracking-wider`}
+        style={{ color: level.color, textShadow: `0 0 8px ${level.color}55` }}
+      >
         {level.name}
       </span>
     </div>
