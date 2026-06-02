@@ -51,38 +51,49 @@ export default function BottomNav() {
   }, [location.pathname, unread]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border safe-area-bottom">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-1">
-        {navItems.map(({ icon: Icon, label, path }) => {
-          const active = location.pathname === path;
-          const isProfile = path === "/profile";
-          return (
-            <button
-              key={path}
-              onClick={() => navigate(path)}
-              className="relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors"
-            >
-              {active && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -top-0.5 w-8 h-0.5 rounded-full gradient-primary"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <div className="relative">
-                <Icon className={`w-5 h-5 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`} />
-                {isProfile && unread > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-accent text-accent-foreground text-[9px] font-black flex items-center justify-center accent-glow">
-                    {unread > 9 ? "9+" : unread}
-                  </span>
+    <nav className="fixed bottom-3 left-3 right-3 z-50 safe-area-bottom">
+      <div className="glass-strong rounded-2xl shadow-premium max-w-lg mx-auto">
+        <div className="flex items-center justify-around h-16 px-1">
+          {navItems.map(({ icon: Icon, label, path }) => {
+            const active = location.pathname === path;
+            const isProfile = path === "/profile";
+            return (
+              <button
+                key={path}
+                onClick={() => navigate(path)}
+                className="relative flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-colors"
+              >
+                {active && (
+                  <motion.div
+                    layoutId="nav-indicator"
+                    className="absolute inset-x-2 inset-y-1 rounded-xl bg-primary/12 border border-primary/25"
+                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                  />
                 )}
-              </div>
-              <span className={`text-[10px] font-medium transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
-                {label}
-              </span>
-            </button>
-          );
-        })}
+                <div className="relative z-10">
+                  <Icon
+                    className={`w-5 h-5 transition-all ${
+                      active ? "text-primary scale-110" : "text-muted-foreground"
+                    }`}
+                    style={active ? { filter: "drop-shadow(0 0 6px hsl(var(--primary) / 0.6))" } : undefined}
+                  />
+                  {isProfile && unread > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-accent text-accent-foreground text-[9px] font-black flex items-center justify-center accent-glow ring-2 ring-background">
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`text-[9px] font-bold tracking-wider uppercase transition-colors z-10 ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
