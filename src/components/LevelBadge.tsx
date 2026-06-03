@@ -59,22 +59,33 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
           </svg>
         )}
         {logo && (
-          <motion.img
+          <motion.div
             key={level.name}
-            src={logo}
-            alt={level.name}
             initial={{ scale: 0.6, opacity: 0, rotateY: -20 }}
             animate={{ scale: 1, opacity: 1, rotateY: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="absolute object-contain"
+            className="absolute rounded-full overflow-hidden flex items-center justify-center"
             style={{
               width: s.img,
               height: s.img,
               top: (s.ring - s.img) / 2,
               left: (s.ring - s.img) / 2,
-              filter: `drop-shadow(0 0 6px ${level.color})`,
+              background: `radial-gradient(circle at 30% 25%, ${level.color}66, ${level.color}11 65%, transparent 100%)`,
+              boxShadow: `inset 0 0 10px ${level.color}55, 0 0 12px ${level.color}44`,
             }}
-          />
+          >
+            <motion.img
+              src={logo}
+              alt={level.name}
+              className="w-[88%] h-[88%] object-contain"
+              style={{
+                mixBlendMode: "screen",
+                filter: `drop-shadow(0 0 4px ${level.color}) contrast(1.18) brightness(1.25) saturate(1.15)`,
+              }}
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </motion.div>
         )}
       </div>
       <span

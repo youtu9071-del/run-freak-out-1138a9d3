@@ -142,11 +142,32 @@ export default function MarketContent() {
           {selectedProduct && !generatedQR && (
             <div className="space-y-4">
               {selectedProduct.image_url && (
-                <div className="h-40 bg-secondary rounded-lg overflow-hidden">
+                <div className="h-48 bg-secondary rounded-lg overflow-hidden">
                   <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
                 </div>
               )}
-              {selectedProduct.description && <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>}
+
+              {/* Admin metadata badges */}
+              <div className="flex flex-wrap gap-2">
+                {selectedProduct.category && (
+                  <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
+                    {selectedProduct.category}
+                  </span>
+                )}
+                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full border ${selectedProduct.in_stock ? "bg-primary/15 text-primary border-primary/30" : "bg-destructive/15 text-destructive border-destructive/30"}`}>
+                  {selectedProduct.in_stock ? "En stock" : "Rupture"}
+                </span>
+                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full bg-accent/15 text-accent border border-accent/30">
+                  {selectedProduct.currency}
+                </span>
+              </div>
+
+              {selectedProduct.description && (
+                <div className="rounded-lg bg-secondary/40 border border-border/60 p-3">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Description</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selectedProduct.description}</p>
+                </div>
+              )}
               <div className="space-y-2 bg-secondary/50 p-3 rounded-lg">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Prix</span>
