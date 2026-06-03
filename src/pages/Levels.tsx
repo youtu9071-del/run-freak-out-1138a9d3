@@ -240,27 +240,27 @@ export default function Levels() {
                   animate={{ scale: 1, opacity: [0, 1, 0.6, 1] }}
                   transition={{ duration: 1, delay: 0.1 }}
                 />
-                {/* Round filled logo container */}
+                {/* Round filled logo container — full logo visible */}
                 <motion.div
                   initial={{ scale: 0.4, opacity: 0, rotateY: -90 }}
                   animate={{ scale: 1, opacity: 1, rotateY: 0 }}
                   transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-3 rounded-full overflow-hidden"
+                  className="absolute inset-3 rounded-full overflow-hidden flex items-center justify-center"
                   style={{
-                    background: `radial-gradient(circle at 30% 25%, ${selectedLevel.color}66, ${selectedLevel.color}15 60%, transparent 100%)`,
-                    boxShadow: `inset 0 0 24px ${selectedLevel.color}77, 0 8px 32px ${selectedLevel.color}55`,
+                    background: `radial-gradient(circle at 30% 25%, ${selectedLevel.color}77, ${selectedLevel.color}15 65%, transparent 100%)`,
+                    boxShadow: `inset 0 0 28px ${selectedLevel.color}88, 0 8px 32px ${selectedLevel.color}55`,
                   }}
                 >
                   <motion.img
                     src={RANK_LOGOS[selectedLevel.name]}
                     alt={selectedLevel.name}
-                    className="absolute inset-0 w-full h-full object-cover scale-[1.55]"
+                    className="w-[86%] h-[86%] object-contain"
                     style={{
                       mixBlendMode: "screen",
-                      filter: `drop-shadow(0 0 8px ${selectedLevel.color}) contrast(1.15) brightness(1.2)`,
+                      filter: `drop-shadow(0 0 10px ${selectedLevel.color}) contrast(1.2) brightness(1.25) saturate(1.2)`,
                     }}
-                    animate={{ scale: [1.55, 1.65, 1.55] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    animate={{ scale: [1, 1.06, 1], rotate: [0, 3, -3, 0] }}
+                    transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
                   />
                 </motion.div>
               </div>
