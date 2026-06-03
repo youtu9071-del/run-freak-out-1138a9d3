@@ -66,19 +66,19 @@ export default function Levels() {
             return (
               <motion.button
                 key={level.name}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.04 }}
+                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: idx * 0.05, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                whileHover={{ y: -4, scale: 1.02 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setSelected(level.name)}
-                className={`relative rounded-2xl overflow-hidden p-3 flex flex-col items-center text-center transition-all ${
+                className={`relative rounded-2xl overflow-hidden p-3 flex flex-col items-center text-center transition-all backdrop-blur-sm ${
                   isCurrent
                     ? "border-2 bg-gradient-to-br from-card to-background"
-                    : "border border-border bg-card/40"
+                    : "border border-border bg-card/40 hover:border-primary/40"
                 }`}
                 style={isCurrent ? { borderColor: level.color, boxShadow: `0 0 24px ${level.color}55` } : {}}
               >
-                {/* Active ring animation */}
                 {isCurrent && (
                   <motion.div
                     className="absolute inset-0 rounded-2xl pointer-events-none"
@@ -89,26 +89,61 @@ export default function Levels() {
                 )}
 
                 <div className="relative w-20 h-20 flex items-center justify-center mb-2">
-                  {isCurrent && (
+                  {/* Soft glow */}
+                  <motion.div
+                    className="absolute inset-0 rounded-full blur-2xl"
+                    style={{ background: `radial-gradient(circle, ${level.color}${isUnlocked ? "aa" : "33"} 0%, transparent 70%)` }}
+                    animate={isCurrent ? { scale: [0.9, 1.2, 0.9], opacity: [0.6, 1, 0.6] } : isUnlocked ? { scale: [0.95, 1.05, 0.95] } : {}}
+                    transition={{ duration: isCurrent ? 2.5 : 4, repeat: Infinity, ease: "easeInOut" }}
+                  />
+
+                  {/* Rotating conic gradient ring */}
+                  {isUnlocked && (
                     <motion.div
-                      className="absolute inset-0 rounded-full blur-2xl"
-                      style={{ background: `radial-gradient(circle, ${level.color}aa 0%, transparent 70%)` }}
-                      animate={{ scale: [0.9, 1.15, 0.9] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background: `conic-gradient(from 0deg, ${level.color}, transparent 40%, ${level.color}cc, transparent 80%, ${level.color})`,
+                        padding: 2,
+                        WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+                        WebkitMaskComposite: "xor",
+                        maskComposite: "exclude",
+                      }}
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: isCurrent ? 6 : 14, repeat: Infinity, ease: "linear" }}
                     />
                   )}
-                  {logo && (
-                    <img
-                      src={logo}
-                      alt={level.name}
-                      className={`relative w-full h-full object-contain transition-all ${
-                        !isUnlocked ? "opacity-40 grayscale" : ""
-                      }`}
-                      style={isCurrent ? { filter: `drop-shadow(0 0 8px ${level.color})` } : undefined}
-                    />
-                  )}
+
+                  {/* Round logo container — black background removed via blend + crop */}
+                  <div
+                    className="relative w-[72px] h-[72px] rounded-full overflow-hidden"
+                    style={{
+                      background: `radial-gradient(circle at 30% 25%, ${level.color}55, ${level.color}11 60%, transparent 100%)`,
+                      boxShadow: isUnlocked
+                        ? `inset 0 0 14px ${level.color}55, 0 6px 18px ${level.color}33`
+                        : "inset 0 0 10px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {logo && (
+                      <motion.img
+                        src={logo}
+                        alt={level.name}
+                        className={`absolute inset-0 w-full h-full object-cover scale-[1.55] ${
+                          !isUnlocked ? "opacity-50 grayscale" : ""
+                        }`}
+                        style={{
+                          mixBlendMode: "screen",
+                          filter: isUnlocked
+                            ? `drop-shadow(0 0 4px ${level.color}) contrast(1.15) brightness(1.2)`
+                            : "brightness(0.6)",
+                        }}
+                        animate={isCurrent ? { scale: [1.55, 1.65, 1.55] } : {}}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                    )}
+                  </div>
+
                   {!isUnlocked && (
-                    <div className="absolute bottom-0 right-0 bg-background/80 rounded-full p-1 border border-border">
+                    <div className="absolute bottom-0 right-0 bg-background/90 rounded-full p-1 border border-border z-10">
                       <Lock className="w-3 h-3 text-muted-foreground" />
                     </div>
                   )}
