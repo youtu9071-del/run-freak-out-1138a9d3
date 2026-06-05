@@ -113,13 +113,12 @@ export default function Levels() {
                     />
                   )}
 
-                  {/* Round logo container — full logo visible, black bg masked via screen blend */}
+                  {/* Round logo container — preserve original badge background */}
                   <div
                     className="relative w-[72px] h-[72px] rounded-full overflow-hidden flex items-center justify-center"
                     style={{
-                      background: `radial-gradient(circle at 30% 25%, ${level.color}66, ${level.color}11 65%, transparent 100%)`,
                       boxShadow: isUnlocked
-                        ? `inset 0 0 14px ${level.color}55, 0 6px 18px ${level.color}33`
+                        ? `0 6px 18px ${level.color}55, 0 0 12px ${level.color}44`
                         : "inset 0 0 10px rgba(0,0,0,0.4)",
                     }}
                   >
@@ -127,11 +126,10 @@ export default function Levels() {
                       <motion.img
                         src={logo}
                         alt={level.name}
-                        className={`w-[88%] h-[88%] object-contain ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
+                        className={`w-full h-full object-cover ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
                         style={{
-                          mixBlendMode: "screen",
                           filter: isUnlocked
-                            ? `drop-shadow(0 0 4px ${level.color}) contrast(1.18) brightness(1.25) saturate(1.15)`
+                            ? `drop-shadow(0 0 6px ${level.color}88)`
                             : "brightness(0.6)",
                         }}
                         animate={
