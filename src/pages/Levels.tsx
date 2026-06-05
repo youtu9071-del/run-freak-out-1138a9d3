@@ -233,22 +233,21 @@ export default function Levels() {
                   animate={{ scale: 1, opacity: [0, 1, 0.6, 1] }}
                   transition={{ duration: 1, delay: 0.1 }}
                 />
-                {/* Round filled logo container — preserve original badge background */}
+                {/* Logo fills the ring — transparent, no background */}
                 <motion.div
                   initial={{ scale: 0.4, opacity: 0, rotateY: -90 }}
                   animate={{ scale: 1, opacity: 1, rotateY: 0 }}
                   transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-3 rounded-full overflow-hidden flex items-center justify-center"
-                  style={{
-                    boxShadow: `0 8px 32px ${selectedLevel.color}55`,
-                  }}
+                  className="absolute inset-3 rounded-full flex items-center justify-center"
                 >
                   <motion.img
                     src={RANK_LOGOS[selectedLevel.name]}
                     alt={selectedLevel.name}
-                    className="w-full h-full object-cover"
+                    className="object-contain"
                     style={{
-                      filter: `drop-shadow(0 0 12px ${selectedLevel.color}aa)`,
+                      width: "92%",
+                      height: "92%",
+                      filter: `drop-shadow(0 0 16px ${selectedLevel.color}cc)`,
                     }}
                     animate={{ y: [0, -4, 0], scale: [1, 1.04, 1] }}
                     transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
