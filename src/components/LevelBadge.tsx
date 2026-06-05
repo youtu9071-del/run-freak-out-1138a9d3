@@ -64,21 +64,22 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
             initial={{ scale: 0.6, opacity: 0, rotateY: -20 }}
             animate={{ scale: 1, opacity: 1, rotateY: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="absolute rounded-full overflow-hidden flex items-center justify-center"
+            className="absolute rounded-full flex items-center justify-center"
             style={{
               width: s.img,
               height: s.img,
               top: (s.ring - s.img) / 2,
               left: (s.ring - s.img) / 2,
-              boxShadow: `0 0 12px ${level.color}66`,
             }}
           >
             <motion.img
               src={logo}
               alt={level.name}
-              className="w-full h-full object-cover"
+              className="object-contain"
               style={{
-                filter: `drop-shadow(0 0 6px ${level.color}88)`,
+                width: "92%",
+                height: "92%",
+                filter: `drop-shadow(0 0 8px ${level.color}aa)`,
               }}
               animate={{ y: [0, -2, 0], scale: [1, 1.04, 1] }}
               transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
