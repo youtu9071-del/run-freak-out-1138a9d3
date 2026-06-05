@@ -113,23 +113,18 @@ export default function Levels() {
                     />
                   )}
 
-                  {/* Round logo container — preserve original badge background */}
-                  <div
-                    className="relative w-[72px] h-[72px] rounded-full overflow-hidden flex items-center justify-center"
-                    style={{
-                      boxShadow: isUnlocked
-                        ? `0 6px 18px ${level.color}55, 0 0 12px ${level.color}44`
-                        : "inset 0 0 10px rgba(0,0,0,0.4)",
-                    }}
-                  >
+                  {/* Logo fills 92% of the ring — no background */}
+                  <div className="relative w-[72px] h-[72px] rounded-full flex items-center justify-center">
                     {logo && (
                       <motion.img
                         src={logo}
                         alt={level.name}
-                        className={`w-full h-full object-cover ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
+                        className={`object-contain ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
                         style={{
+                          width: "92%",
+                          height: "92%",
                           filter: isUnlocked
-                            ? `drop-shadow(0 0 6px ${level.color}88)`
+                            ? `drop-shadow(0 0 8px ${level.color}aa)`
                             : "brightness(0.6)",
                         }}
                         animate={
