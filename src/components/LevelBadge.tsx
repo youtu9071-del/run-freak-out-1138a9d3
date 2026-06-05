@@ -70,18 +70,14 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
               height: s.img,
               top: (s.ring - s.img) / 2,
               left: (s.ring - s.img) / 2,
-              background: `radial-gradient(circle at 30% 25%, ${level.color}66, ${level.color}11 65%, transparent 100%)`,
-              boxShadow: `inset 0 0 10px ${level.color}55, 0 0 12px ${level.color}44`,
+              boxShadow: `0 0 12px ${level.color}66`,
             }}
           >
             <motion.img
               src={logo}
               alt={level.name}
-              className="w-[88%] h-[88%] object-contain"
-              style={{
-                mixBlendMode: "screen",
-                filter: `drop-shadow(0 0 4px ${level.color}) contrast(1.18) brightness(1.25) saturate(1.15)`,
-              }}
+              className="w-full h-full object-cover"
+              style={{ filter: `drop-shadow(0 0 6px ${level.color}88)` }}
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
             />
