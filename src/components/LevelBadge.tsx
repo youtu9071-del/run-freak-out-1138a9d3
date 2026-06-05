@@ -76,10 +76,8 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
             <motion.img
               src={logo}
               alt={level.name}
-              className="object-contain"
+              className="w-full h-full object-cover"
               style={{
-                width: "88%",
-                height: "88%",
                 filter: `drop-shadow(0 0 6px ${level.color}88)`,
               }}
               animate={{ y: [0, -2, 0], scale: [1, 1.04, 1] }}
