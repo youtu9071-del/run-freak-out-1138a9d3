@@ -126,10 +126,8 @@ export default function Levels() {
                       <motion.img
                         src={logo}
                         alt={level.name}
-                        className={`object-contain ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
+                        className={`w-full h-full object-cover ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
                         style={{
-                          width: "88%",
-                          height: "88%",
                           filter: isUnlocked
                             ? `drop-shadow(0 0 6px ${level.color}88)`
                             : "brightness(0.6)",
@@ -253,10 +251,8 @@ export default function Levels() {
                   <motion.img
                     src={RANK_LOGOS[selectedLevel.name]}
                     alt={selectedLevel.name}
-                    className="object-contain"
+                    className="w-full h-full object-cover"
                     style={{
-                      width: "88%",
-                      height: "88%",
                       filter: `drop-shadow(0 0 12px ${selectedLevel.color}aa)`,
                     }}
                     animate={{ y: [0, -4, 0], scale: [1, 1.04, 1] }}
