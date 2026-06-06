@@ -50,16 +50,21 @@ export default function QRScan() {
   };
 
   const handleValidate = async () => {
-    if (!isAdmin || !qr) return;
+    if (!qr) return;
     setValidating(true);
-    const { data, error } = await supabase.rpc("scan_qrcode_validate" as any, { p_uid: qr.qr_uid });
+    // Atomic single-use RPC: works for admins and partners without login.
+    const { data, error } = await supabase.rpc("partner_scan_validate" as any, { p_uid: qr.qr_uid });
     if (error) {
       toast.error("Erreur de validation");
     } else {
       const row = (data as any[])?.[0];
       if (row?.already_used) {
         setAlreadyUsed(true);
+        setQR({ ...qr, status: "used", used_at: row.used_at });
         toast.error("⚠️ QR code déjà scanné !");
+      } else if (row?.status === "expired") {
+        setQR({ ...qr, status: "expired" });
+        toast.error("QR code expiré");
       } else {
         toast.success("QR code validé ✅");
         setQR({ ...qr, status: "used", used_at: row.used_at });
@@ -143,23 +148,21 @@ export default function QRScan() {
         <Row label="ID" value={qr.qr_uid} />
       </div>
 
-      {/* Admin validate button */}
-      {user && isAdmin && qr.status === "active" && !isExpired && !alreadyUsed && (
+      {/* Validate button — open to anyone (partner) with the link */}
+      {qr.status === "active" && !isExpired && !alreadyUsed && (
         <button
           onClick={handleValidate}
           disabled={validating}
           className="w-full mt-4 rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <Shield className="w-4 h-4" />
-          {validating ? "Validation..." : "VALIDER LE QR CODE"}
+          {validating ? "Validation..." : isAdmin ? "VALIDER LE QR CODE" : "MARQUER COMME UTILISÉ"}
         </button>
       )}
 
-      {!user && (
-        <p className="text-xs text-center text-muted-foreground mt-4">
-          Connecte-toi en tant qu'administrateur pour valider ce QR code.
-        </p>
-      )}
+      <p className="text-[11px] text-center text-muted-foreground mt-4">
+        Un QR code ne peut être validé qu'une seule fois. Toute tentative ultérieure sera bloquée.
+      </p>
     </div>
   );
 }

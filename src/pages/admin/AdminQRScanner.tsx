@@ -124,9 +124,12 @@ export default function AdminQRScanner() {
             <Search className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-2">
-          Astuce : scannez le QR code avec votre téléphone, ouvrez le lien <code>/scan/...</code> et validez sur cette page.
-        </p>
+        <div className="mt-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <p className="text-[11px] font-bold text-primary uppercase tracking-wider mb-1">🔗 Lien partenaire</p>
+          <p className="text-[11px] text-muted-foreground">
+            Chaque QR code possède son propre lien <code className="text-primary">/scan/...</code>. Cliquez sur "Lien" à côté d'un QR ci-dessous pour le copier et l'envoyer à votre partenaire. Le partenaire pourra le scanner ou l'ouvrir — la validation est <strong>atomique et à usage unique</strong> (toute seconde tentative est bloquée automatiquement).
+          </p>
+        </div>
 
         {scannedQR && (
           <motion.div
