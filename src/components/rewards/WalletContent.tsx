@@ -7,6 +7,7 @@ import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
+import freakoutLogo from "@/assets/freakout-logo.png";
 
 export default function WalletContent() {
   const { profile, user } = useAuth();
