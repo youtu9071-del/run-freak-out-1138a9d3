@@ -755,6 +755,15 @@ export type Database = {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
       }
+      partner_scan_validate: {
+        Args: { p_uid: string }
+        Returns: {
+          already_used: boolean
+          expired: boolean
+          status: string
+          used_at: string
+        }[]
+      }
       purchase_with_fp: {
         Args: { p_fp_to_use: number; p_product_id: string }
         Returns: {
