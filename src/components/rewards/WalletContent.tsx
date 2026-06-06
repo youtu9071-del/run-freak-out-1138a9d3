@@ -51,28 +51,90 @@ export default function WalletContent() {
       const fmt = (v: number) => cur === "FCFA" ? `${Number(v).toLocaleString()} ${sym}` : `${Number(v).toFixed(2)} ${sym}`;
       const dataUrl = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ unit: "mm", format: "a4" });
-      pdf.setFontSize(20);
-      pdf.text("FREAK OUT - Bon d'achat", 105, 25, { align: "center" });
-      pdf.setFontSize(12);
-      pdf.text(qr.product?.name || "Produit", 105, 40, { align: "center" });
-      pdf.addImage(dataUrl, "PNG", 65, 55, 80, 80);
+
+      // ===== Header band (dark) =====
+      pdf.setFillColor(10, 14, 22);
+      pdf.rect(0, 0, 210, 42, "F");
+      pdf.setFillColor(34, 197, 94); // neon green accent strip
+      pdf.rect(0, 42, 210, 1.2, "F");
+
+      // Logo
+      try {
+        pdf.addImage(freakoutLogo, "PNG", 12, 8, 26, 26);
+      } catch (e) { /* ignore if logo fails */ }
+
+      // Brand text
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(22);
+      pdf.text("FREAK OUT", 44, 22);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setTextColor(34, 197, 94);
+      pdf.text("RACE · EARN · DOMINATE", 44, 28);
+      pdf.setTextColor(180, 180, 180);
       pdf.setFontSize(10);
-      let y = 150;
-      if (qr.product?.price != null) {
-        pdf.text(`Prix article : ${fmt(Number(qr.product.price))}`, 20, y); y += 8;
-      }
-      pdf.text(`FP utilisés : ${qr.fp_used}`, 20, y); y += 8;
-      pdf.text(`Réduction : ${fmt(Number(qr.discount_amount))}`, 20, y); y += 8;
-      pdf.text(`Total payé : ${fmt(Number(qr.total_price))}`, 20, y); y += 8;
-      pdf.text(`Émis le : ${new Date(qr.created_at).toLocaleDateString("fr-FR")}`, 20, y); y += 8;
-      if (qr.expires_at) {
-        pdf.text(`Expire le : ${new Date(qr.expires_at).toLocaleDateString("fr-FR")}`, 20, y); y += 8;
-      }
-      pdf.text(`Statut : ${qr.status}`, 20, y); y += 8;
-      pdf.text(`ID : ${qr.qr_uid || qr.id}`, 20, y);
+      pdf.text("Bon d'achat officiel", 198, 22, { align: "right" });
       pdf.setFontSize(8);
-      pdf.text("Présentez ce QR code à un administrateur pour récupérer votre produit.", 105, 215, { align: "center" });
-      pdf.save(`qr-${qr.product?.name || "achat"}-${qr.id.slice(0, 8)}.pdf`);
+      pdf.text(new Date(qr.created_at).toLocaleDateString("fr-FR"), 198, 28, { align: "right" });
+
+      // ===== Body =====
+      pdf.setTextColor(20, 20, 20);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(16);
+      pdf.text(qr.product?.name || "Produit", 105, 58, { align: "center" });
+
+      // QR code
+      pdf.addImage(dataUrl, "PNG", 65, 66, 80, 80);
+
+      // Frame around QR
+      pdf.setDrawColor(34, 197, 94);
+      pdf.setLineWidth(0.6);
+      pdf.rect(63, 64, 84, 84);
+
+      // Details box
+      pdf.setDrawColor(220, 220, 220);
+      pdf.setLineWidth(0.3);
+      pdf.roundedRect(20, 156, 170, 60, 3, 3);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      pdf.setTextColor(34, 197, 94);
+      pdf.text("DÉTAILS DE LA COMMANDE", 25, 164);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      pdf.setTextColor(40, 40, 40);
+      let y = 172;
+      const row = (label: string, value: string) => {
+        pdf.setTextColor(110, 110, 110);
+        pdf.text(label, 25, y);
+        pdf.setTextColor(20, 20, 20);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(value, 185, y, { align: "right" });
+        pdf.setFont("helvetica", "normal");
+        y += 7;
+      };
+      if (qr.product?.price != null) row("Prix article", fmt(Number(qr.product.price)));
+      row("FP utilisés", String(qr.fp_used));
+      row("Réduction", fmt(Number(qr.discount_amount)));
+      row("Total payé", fmt(Number(qr.total_price)));
+      if (qr.expires_at) row("Expire le", new Date(qr.expires_at).toLocaleDateString("fr-FR"));
+      row("Statut", qr.status.toUpperCase());
+
+      // Footer
+      pdf.setDrawColor(34, 197, 94);
+      pdf.setLineWidth(0.4);
+      pdf.line(20, 260, 190, 260);
+      pdf.setFontSize(9);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text("Présentez ce QR code au partenaire pour récupérer votre produit.", 105, 268, { align: "center" });
+      pdf.setFontSize(7);
+      pdf.setTextColor(140, 140, 140);
+      pdf.text(`ID unique : ${qr.qr_uid || qr.id}`, 105, 274, { align: "center" });
+      pdf.text("Usage unique — toute deuxième tentative sera refusée.", 105, 279, { align: "center" });
+
+      pdf.save(`freakout-bon-${qr.product?.name || "achat"}-${qr.id.slice(0, 8)}.pdf`);
       toast.success("PDF téléchargé");
     } catch (e) {
       toast.error("Erreur téléchargement");
