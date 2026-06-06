@@ -50,16 +50,21 @@ export default function QRScan() {
   };
 
   const handleValidate = async () => {
-    if (!isAdmin || !qr) return;
+    if (!qr) return;
     setValidating(true);
-    const { data, error } = await supabase.rpc("scan_qrcode_validate" as any, { p_uid: qr.qr_uid });
+    // Atomic single-use RPC: works for admins and partners without login.
+    const { data, error } = await supabase.rpc("partner_scan_validate" as any, { p_uid: qr.qr_uid });
     if (error) {
       toast.error("Erreur de validation");
     } else {
       const row = (data as any[])?.[0];
       if (row?.already_used) {
         setAlreadyUsed(true);
+        setQR({ ...qr, status: "used", used_at: row.used_at });
         toast.error("⚠️ QR code déjà scanné !");
+      } else if (row?.status === "expired") {
+        setQR({ ...qr, status: "expired" });
+        toast.error("QR code expiré");
       } else {
         toast.success("QR code validé ✅");
         setQR({ ...qr, status: "used", used_at: row.used_at });
