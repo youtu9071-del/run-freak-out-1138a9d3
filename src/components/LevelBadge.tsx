@@ -35,7 +35,7 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
             key={level.name}
             src={logo}
             alt={level.name}
-            className="relative object-contain w-full h-full"
+            className="relative object-contain w-[88%] h-[88%] max-w-[88%] max-h-[88%]"
             style={{ filter: `drop-shadow(0 0 10px ${level.color}cc)` }}
             initial={{ scale: 0.6, opacity: 0, rotateY: -20 }}
             animate={{ scale: 1, opacity: 1, rotateY: 0, y: [0, -3, 0] }}
