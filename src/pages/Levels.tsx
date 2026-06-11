@@ -184,7 +184,7 @@ export default function Levels() {
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="relative mx-auto w-44 h-44 mb-4 flex items-center justify-center">
+              <div className="relative mx-auto w-44 h-44 max-w-full mb-4 flex items-center justify-center overflow-hidden">
                 {/* Expanding light wave */}
                 <motion.div
                   className="absolute inset-0 rounded-full blur-2xl"
