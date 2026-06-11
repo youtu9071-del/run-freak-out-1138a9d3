@@ -14,85 +14,57 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
   const logo = RANK_LOGOS[level.name];
 
   const sizes = {
-    sm: { ring: 48, stroke: 3, text: "text-[8px]", img: 32 },
-    md: { ring: 72, stroke: 4, text: "text-[10px]", img: 52 },
-    lg: { ring: 104, stroke: 5, text: "text-xs", img: 80 },
+    sm: { img: 56, text: "text-[9px]", bar: 60 },
+    md: { img: 88, text: "text-[11px]", bar: 96 },
+    lg: { img: 128, text: "text-sm", bar: 140 },
   };
-
   const s = sizes[size];
-  const r = (s.ring - s.stroke * 2) / 2;
-  const circumference = 2 * Math.PI * r;
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="relative" style={{ width: s.ring, height: s.ring }}>
-        {/* Glow halo */}
-        <div
-          className="absolute inset-0 rounded-full blur-xl opacity-60 pointer-events-none"
-          style={{ background: `radial-gradient(circle, ${level.color} 0%, transparent 70%)` }}
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative flex items-center justify-center" style={{ width: s.img, height: s.img }}>
+        {/* Soft glow halo behind logo */}
+        <motion.div
+          className="absolute inset-0 rounded-full blur-2xl pointer-events-none"
+          style={{ background: `radial-gradient(circle, ${level.color}aa 0%, transparent 70%)` }}
+          animate={{ scale: [0.9, 1.1, 0.9], opacity: [0.5, 0.85, 0.5] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
         />
-        {showProgress && (
-          <svg width={s.ring} height={s.ring} className="-rotate-90 absolute inset-0">
-            <circle
-              cx={s.ring / 2}
-              cy={s.ring / 2}
-              r={r}
-              fill="none"
-              stroke="hsl(var(--muted))"
-              strokeWidth={s.stroke}
-              opacity={0.3}
-            />
-            <motion.circle
-              cx={s.ring / 2}
-              cy={s.ring / 2}
-              r={r}
-              fill="none"
-              stroke={level.color}
-              strokeWidth={s.stroke}
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              initial={{ strokeDashoffset: circumference }}
-              animate={{ strokeDashoffset: circumference * (1 - progress / 100) }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
-              style={{ filter: `drop-shadow(0 0 4px ${level.color})` }}
-            />
-          </svg>
-        )}
         {logo && (
-          <motion.div
+          <motion.img
             key={level.name}
+            src={logo}
+            alt={level.name}
+            className="relative object-contain w-full h-full"
+            style={{ filter: `drop-shadow(0 0 10px ${level.color}cc)` }}
             initial={{ scale: 0.6, opacity: 0, rotateY: -20 }}
-            animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="absolute rounded-full flex items-center justify-center"
-            style={{
-              width: s.img,
-              height: s.img,
-              top: (s.ring - s.img) / 2,
-              left: (s.ring - s.img) / 2,
+            animate={{ scale: 1, opacity: 1, rotateY: 0, y: [0, -3, 0] }}
+            transition={{
+              scale: { duration: 0.5, ease: "easeOut" },
+              opacity: { duration: 0.5 },
+              rotateY: { duration: 0.5 },
+              y: { duration: 3.5, repeat: Infinity, ease: "easeInOut" },
             }}
-          >
-            <motion.img
-              src={logo}
-              alt={level.name}
-              className="object-contain"
-              style={{
-                width: "92%",
-                height: "92%",
-                filter: `drop-shadow(0 0 8px ${level.color}aa)`,
-              }}
-              animate={{ y: [0, -2, 0], scale: [1, 1.04, 1] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-            />
-          </motion.div>
+          />
         )}
       </div>
       <span
-        className={`font-display font-bold ${s.text} text-center leading-tight max-w-[120px] uppercase tracking-wider`}
+        className={`font-display font-bold ${s.text} text-center leading-tight uppercase tracking-wider`}
         style={{ color: level.color, textShadow: `0 0 8px ${level.color}55` }}
       >
         {level.name}
       </span>
+      {showProgress && (
+        <div className="relative h-1 rounded-full bg-muted/40 overflow-hidden" style={{ width: s.bar }}>
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{ background: level.color, boxShadow: `0 0 6px ${level.color}` }}
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 1.1, ease: "easeOut" }}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -72,7 +72,7 @@ export default function Levels() {
                 whileHover={{ y: -4, scale: 1.02 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setSelected(level.name)}
-                className={`relative rounded-2xl overflow-hidden p-3 flex flex-col items-center text-center transition-all backdrop-blur-sm ${
+                className={`relative rounded-2xl p-3 flex flex-col items-center text-center transition-all backdrop-blur-sm ${
                   isCurrent
                     ? "border-2 bg-gradient-to-br from-card to-background"
                     : "border border-border bg-card/40 hover:border-primary/40"
@@ -88,8 +88,8 @@ export default function Levels() {
                   />
                 )}
 
-                <div className="relative w-20 h-20 flex items-center justify-center mb-2">
-                  {/* Soft glow */}
+                <div className="relative w-24 h-24 flex items-center justify-center mb-2">
+                  {/* Soft glow halo */}
                   <motion.div
                     className="absolute inset-0 rounded-full blur-2xl"
                     style={{ background: `radial-gradient(circle, ${level.color}${isUnlocked ? "aa" : "33"} 0%, transparent 70%)` }}
@@ -97,47 +97,26 @@ export default function Levels() {
                     transition={{ duration: isCurrent ? 2.5 : 4, repeat: Infinity, ease: "easeInOut" }}
                   />
 
-                  {/* Rotating conic gradient ring */}
-                  {isUnlocked && (
-                    <motion.div
-                      className="absolute inset-0 rounded-full"
+                  {logo && (
+                    <motion.img
+                      src={logo}
+                      alt={level.name}
+                      className={`relative object-contain w-full h-full ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
                       style={{
-                        background: `conic-gradient(from 0deg, ${level.color}, transparent 40%, ${level.color}cc, transparent 80%, ${level.color})`,
-                        padding: 2,
-                        WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-                        WebkitMaskComposite: "xor",
-                        maskComposite: "exclude",
+                        filter: isUnlocked
+                          ? `drop-shadow(0 0 10px ${level.color}cc)`
+                          : "brightness(0.55)",
                       }}
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: isCurrent ? 6 : 14, repeat: Infinity, ease: "linear" }}
+                      animate={
+                        isCurrent
+                          ? { y: [0, -4, 0], scale: [1, 1.05, 1] }
+                          : isUnlocked
+                          ? { y: [0, -2, 0] }
+                          : {}
+                      }
+                      transition={{ duration: isCurrent ? 3 : 5, repeat: Infinity, ease: "easeInOut" }}
                     />
                   )}
-
-                  {/* Logo fills 92% of the ring — no background */}
-                  <div className="relative w-[72px] h-[72px] rounded-full flex items-center justify-center">
-                    {logo && (
-                      <motion.img
-                        src={logo}
-                        alt={level.name}
-                        className={`object-contain ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
-                        style={{
-                          width: "92%",
-                          height: "92%",
-                          filter: isUnlocked
-                            ? `drop-shadow(0 0 8px ${level.color}aa)`
-                            : "brightness(0.6)",
-                        }}
-                        animate={
-                          isCurrent
-                            ? { y: [0, -3, 0], scale: [1, 1.04, 1] }
-                            : isUnlocked
-                            ? { y: [0, -2, 0] }
-                            : {}
-                        }
-                        transition={{ duration: isCurrent ? 3 : 5, repeat: Infinity, ease: "easeInOut" }}
-                      />
-                    )}
-                  </div>
 
                   {!isUnlocked && (
                     <div className="absolute bottom-0 right-0 bg-background/90 rounded-full p-1 border border-border z-10">
@@ -145,6 +124,7 @@ export default function Levels() {
                     </div>
                   )}
                 </div>
+
                 <p
                   className={`font-display font-bold text-[11px] leading-tight uppercase tracking-wider ${
                     isCurrent ? "" : isUnlocked ? "text-foreground" : "text-muted-foreground"
