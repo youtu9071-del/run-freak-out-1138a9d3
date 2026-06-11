@@ -22,7 +22,7 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative flex items-center justify-center" style={{ width: s.img, height: s.img }}>
+      <div className="relative flex items-center justify-center overflow-hidden shrink-0" style={{ width: s.img, height: s.img, maxWidth: "100%" }}>
         {/* Soft glow halo behind logo */}
         <motion.div
           className="absolute inset-0 rounded-full blur-2xl pointer-events-none"
@@ -35,7 +35,7 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
             key={level.name}
             src={logo}
             alt={level.name}
-            className="relative object-contain w-full h-full"
+            className="relative object-contain w-[88%] h-[88%] max-w-[88%] max-h-[88%]"
             style={{ filter: `drop-shadow(0 0 10px ${level.color}cc)` }}
             initial={{ scale: 0.6, opacity: 0, rotateY: -20 }}
             animate={{ scale: 1, opacity: 1, rotateY: 0, y: [0, -3, 0] }}

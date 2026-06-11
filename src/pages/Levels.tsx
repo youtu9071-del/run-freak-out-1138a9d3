@@ -88,7 +88,7 @@ export default function Levels() {
                   />
                 )}
 
-                <div className="relative w-20 h-20 flex items-center justify-center mb-2 overflow-hidden">
+                <div className="relative w-20 h-20 max-w-full flex items-center justify-center mb-2 overflow-hidden shrink-0">
                   {/* Soft glow halo */}
                   <motion.div
                     className="absolute inset-0 rounded-full blur-2xl"
@@ -101,7 +101,7 @@ export default function Levels() {
                     <motion.img
                       src={logo}
                       alt={level.name}
-                      className={`relative object-contain max-w-full max-h-full ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
+                      className={`relative object-contain w-[88%] h-[88%] max-w-[88%] max-h-[88%] ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
                       style={{
                         filter: isUnlocked
                           ? `drop-shadow(0 0 10px ${level.color}cc)`
@@ -184,7 +184,7 @@ export default function Levels() {
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="relative mx-auto w-44 h-44 mb-4 flex items-center justify-center">
+              <div className="relative mx-auto w-44 h-44 max-w-full mb-4 flex items-center justify-center overflow-hidden">
                 {/* Expanding light wave */}
                 <motion.div
                   className="absolute inset-0 rounded-full blur-2xl"
@@ -202,7 +202,7 @@ export default function Levels() {
                 <motion.img
                   src={RANK_LOGOS[selectedLevel.name]}
                   alt={selectedLevel.name}
-                  className="relative object-contain w-full h-full"
+                  className="relative object-contain w-[88%] h-[88%] max-w-[88%] max-h-[88%]"
                   style={{ filter: `drop-shadow(0 0 18px ${selectedLevel.color}dd)` }}
                   initial={{ scale: 0.4, opacity: 0, rotateY: -90 }}
                   animate={{ scale: 1, opacity: 1, rotateY: 0, y: [0, -5, 0] }}
