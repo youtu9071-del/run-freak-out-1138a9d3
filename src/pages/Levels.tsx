@@ -202,7 +202,7 @@ export default function Levels() {
                 <motion.img
                   src={RANK_LOGOS[selectedLevel.name]}
                   alt={selectedLevel.name}
-                  className="relative object-contain w-full h-full"
+                  className="relative object-contain w-[88%] h-[88%] max-w-[88%] max-h-[88%]"
                   style={{ filter: `drop-shadow(0 0 18px ${selectedLevel.color}dd)` }}
                   initial={{ scale: 0.4, opacity: 0, rotateY: -90 }}
                   animate={{ scale: 1, opacity: 1, rotateY: 0, y: [0, -5, 0] }}
