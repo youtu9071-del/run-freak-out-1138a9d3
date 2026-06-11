@@ -72,7 +72,7 @@ export default function Levels() {
                 whileHover={{ y: -4, scale: 1.02 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setSelected(level.name)}
-                className={`relative rounded-2xl p-3 flex flex-col items-center text-center transition-all backdrop-blur-sm ${
+                className={`relative rounded-2xl p-3 flex flex-col items-center text-center transition-all backdrop-blur-sm overflow-hidden ${
                   isCurrent
                     ? "border-2 bg-gradient-to-br from-card to-background"
                     : "border border-border bg-card/40 hover:border-primary/40"
