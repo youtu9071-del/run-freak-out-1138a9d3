@@ -184,56 +184,37 @@ export default function Levels() {
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="relative mx-auto w-40 h-40 mb-4">
+              <div className="relative mx-auto w-44 h-44 mb-4 flex items-center justify-center">
                 {/* Expanding light wave */}
                 <motion.div
-                  className="absolute inset-0 rounded-full"
-                  style={{ background: `radial-gradient(circle, ${selectedLevel.color}aa 0%, transparent 60%)` }}
-                  initial={{ scale: 0.4, opacity: 0 }}
-                  animate={{ scale: [0.4, 1.7, 1.2], opacity: [0, 0.8, 0.5] }}
+                  className="absolute inset-0 rounded-full blur-2xl"
+                  style={{ background: `radial-gradient(circle, ${selectedLevel.color}bb 0%, transparent 65%)` }}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: [0.5, 1.4, 1.1], opacity: [0, 0.9, 0.6] }}
                   transition={{ duration: 1.4, ease: "easeOut" }}
                 />
-                {/* Rotating conic ring */}
                 <motion.div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: `conic-gradient(from 0deg, ${selectedLevel.color}, transparent 35%, ${selectedLevel.color}dd, transparent 75%, ${selectedLevel.color})`,
-                    padding: 3,
-                    WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-                    WebkitMaskComposite: "xor",
-                    maskComposite: "exclude",
-                  }}
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 rounded-full blur-3xl"
+                  style={{ background: `radial-gradient(circle, ${selectedLevel.color}66 0%, transparent 70%)` }}
+                  animate={{ scale: [0.95, 1.1, 0.95], opacity: [0.5, 0.9, 0.5] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 />
-                <motion.div
-                  className="absolute inset-0 rounded-full border-2"
-                  style={{ borderColor: selectedLevel.color, boxShadow: `0 0 30px ${selectedLevel.color}` }}
-                  initial={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: [0, 1, 0.6, 1] }}
-                  transition={{ duration: 1, delay: 0.1 }}
-                />
-                {/* Logo fills the ring — transparent, no background */}
-                <motion.div
+                <motion.img
+                  src={RANK_LOGOS[selectedLevel.name]}
+                  alt={selectedLevel.name}
+                  className="relative object-contain w-full h-full"
+                  style={{ filter: `drop-shadow(0 0 18px ${selectedLevel.color}dd)` }}
                   initial={{ scale: 0.4, opacity: 0, rotateY: -90 }}
-                  animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-                  transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-3 rounded-full flex items-center justify-center"
-                >
-                  <motion.img
-                    src={RANK_LOGOS[selectedLevel.name]}
-                    alt={selectedLevel.name}
-                    className="object-contain"
-                    style={{
-                      width: "92%",
-                      height: "92%",
-                      filter: `drop-shadow(0 0 16px ${selectedLevel.color}cc)`,
-                    }}
-                    animate={{ y: [0, -4, 0], scale: [1, 1.04, 1] }}
-                    transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-                  />
-                </motion.div>
+                  animate={{ scale: 1, opacity: 1, rotateY: 0, y: [0, -5, 0] }}
+                  transition={{
+                    scale: { duration: 0.7, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.5 },
+                    rotateY: { duration: 0.7 },
+                    y: { duration: 4.5, repeat: Infinity, ease: "easeInOut" },
+                  }}
+                />
               </div>
+
 
               <motion.h2
                 initial={{ opacity: 0, y: 10 }}
