@@ -22,7 +22,7 @@ export default function LevelBadge({ totalKm, size = "md", showProgress = true }
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative flex items-center justify-center" style={{ width: s.img, height: s.img }}>
+      <div className="relative flex items-center justify-center overflow-hidden shrink-0" style={{ width: s.img, height: s.img, maxWidth: "100%" }}>
         {/* Soft glow halo behind logo */}
         <motion.div
           className="absolute inset-0 rounded-full blur-2xl pointer-events-none"
