@@ -72,7 +72,7 @@ export default function Levels() {
                 whileHover={{ y: -4, scale: 1.02 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setSelected(level.name)}
-                className={`relative rounded-2xl p-3 flex flex-col items-center text-center transition-all backdrop-blur-sm ${
+                className={`relative rounded-2xl p-3 flex flex-col items-center text-center transition-all backdrop-blur-sm overflow-hidden ${
                   isCurrent
                     ? "border-2 bg-gradient-to-br from-card to-background"
                     : "border border-border bg-card/40 hover:border-primary/40"
@@ -88,7 +88,7 @@ export default function Levels() {
                   />
                 )}
 
-                <div className="relative w-24 h-24 flex items-center justify-center mb-2">
+                <div className="relative w-20 h-20 flex items-center justify-center mb-2 overflow-hidden">
                   {/* Soft glow halo */}
                   <motion.div
                     className="absolute inset-0 rounded-full blur-2xl"
@@ -101,7 +101,7 @@ export default function Levels() {
                     <motion.img
                       src={logo}
                       alt={level.name}
-                      className={`relative object-contain w-full h-full ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
+                      className={`relative object-contain max-w-full max-h-full ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
                       style={{
                         filter: isUnlocked
                           ? `drop-shadow(0 0 10px ${level.color}cc)`
