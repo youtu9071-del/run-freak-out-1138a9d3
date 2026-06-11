@@ -101,7 +101,7 @@ export default function Levels() {
                     <motion.img
                       src={logo}
                       alt={level.name}
-                      className={`relative object-contain max-w-full max-h-full ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
+                      className={`relative object-contain w-[88%] h-[88%] max-w-[88%] max-h-[88%] ${!isUnlocked ? "opacity-50 grayscale" : ""}`}
                       style={{
                         filter: isUnlocked
                           ? `drop-shadow(0 0 10px ${level.color}cc)`
