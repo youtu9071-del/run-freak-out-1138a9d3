@@ -88,7 +88,7 @@ export default function Levels() {
                   />
                 )}
 
-                <div className="relative w-20 h-20 flex items-center justify-center mb-2 overflow-hidden">
+                <div className="relative w-20 h-20 max-w-full flex items-center justify-center mb-2 overflow-hidden shrink-0">
                   {/* Soft glow halo */}
                   <motion.div
                     className="absolute inset-0 rounded-full blur-2xl"
