@@ -48,7 +48,7 @@ export default function Dashboard() {
   })();
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto relative">
+    <div className="min-h-screen w-full max-w-lg mx-auto relative overflow-x-hidden px-3 sm:px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))]">
       {/* Ambient hero glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[140%] h-80 gradient-hero pointer-events-none -z-10" />
 
