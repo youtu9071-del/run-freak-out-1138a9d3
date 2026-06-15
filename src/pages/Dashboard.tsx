@@ -56,20 +56,20 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-7"
+        className="flex items-center justify-between mb-5 sm:mb-7 gap-3"
       >
-        <div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-widest truncate">
             {greeting}
           </p>
-          <h1 className="font-display font-black text-3xl text-foreground leading-tight mt-0.5">
+          <h1 className="font-display font-black text-2xl sm:text-3xl text-foreground leading-tight mt-0.5 truncate">
             {profile?.username || "Runner"}
             <span className="text-gradient-primary">.</span>
           </h1>
         </div>
         <button
           onClick={() => navigate("/profile")}
-          className="transition-transform active:scale-95"
+          className="transition-transform active:scale-95 shrink-0"
           aria-label="Voir le profil"
         >
           <LevelBadge totalKm={totalKm} size="sm" />
