@@ -111,7 +111,7 @@ export default function Dashboard() {
       </motion.button>
 
       {/* Bento Grid */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-2.5 sm:gap-3 mb-6">
         {/* Défis — large tile */}
         <motion.button
           initial={{ opacity: 0, y: 12 }}
