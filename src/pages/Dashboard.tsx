@@ -83,29 +83,29 @@ export default function Dashboard() {
         transition={{ delay: 0.1, ease: [0.34, 1.56, 0.64, 1] }}
         whileTap={{ scale: 0.97 }}
         onClick={() => navigate("/activity")}
-        className="relative w-full rounded-2xl gradient-primary p-6 flex items-center justify-between mb-4 shadow-premium overflow-hidden group"
+        className="relative w-full rounded-2xl gradient-primary p-4 sm:p-6 flex items-center justify-between gap-3 mb-4 shadow-premium overflow-hidden group"
       >
         {/* Decorative orbs */}
         <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -left-6 -bottom-10 w-28 h-28 rounded-full bg-white/5 blur-xl" />
         <div className="absolute inset-0 opacity-20 mix-blend-overlay shimmer" />
 
-        <div className="text-left relative z-10">
+        <div className="text-left relative z-10 min-w-0 flex-1">
           <p className="text-[10px] font-bold text-primary-foreground/70 uppercase tracking-[0.18em] mb-1">
             Prêt à courir
           </p>
-          <p className="font-display font-black text-2xl text-primary-foreground leading-none">
+          <p className="font-display font-black text-xl sm:text-2xl text-primary-foreground leading-none break-words">
             LANCER UNE COURSE
           </p>
-          <p className="text-xs text-primary-foreground/80 mt-2 flex items-center gap-1.5 font-medium">
-            <TrendingUp className="w-3 h-3" />
+          <p className="text-[11px] sm:text-xs text-primary-foreground/80 mt-2 flex items-center gap-1.5 font-medium">
+            <TrendingUp className="w-3 h-3 shrink-0" />
             {totalKm.toFixed(1)} km parcourus
           </p>
         </div>
-        <div className="relative">
+        <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-full bg-primary-foreground/20 animate-ping" />
-          <div className="relative w-16 h-16 rounded-full bg-primary-foreground/25 backdrop-blur-sm flex items-center justify-center ring-2 ring-primary-foreground/30">
-            <Play className="w-7 h-7 text-primary-foreground ml-1 fill-current" />
+          <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary-foreground/25 backdrop-blur-sm flex items-center justify-center ring-2 ring-primary-foreground/30">
+            <Play className="w-6 h-6 sm:w-7 sm:h-7 text-primary-foreground ml-1 fill-current" />
           </div>
         </div>
       </motion.button>
