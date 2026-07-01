@@ -132,8 +132,13 @@ export default function MarketContent() {
           {products.map((product, i) => (
             <motion.div key={product.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
               <Card className="overflow-hidden border-border cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { setSelectedProduct(product); setFpToUse(0); setGeneratedQR(null); }}>
-                <div className="h-28 bg-secondary flex items-center justify-center overflow-hidden">
+                <div className="h-28 bg-secondary flex items-center justify-center overflow-hidden relative">
                   {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <Package className="w-10 h-10 text-muted-foreground" />}
+                  {product.stock_quantity !== null && (
+                    <span className={`absolute top-1.5 right-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md ${product.stock_quantity <= 0 ? "bg-destructive/80 text-destructive-foreground" : product.stock_quantity <= 5 ? "bg-accent/80 text-accent-foreground" : "bg-primary/80 text-primary-foreground"}`}>
+                      {product.stock_quantity <= 0 ? "Épuisé" : `${product.stock_quantity} dispo`}
+                    </span>
+                  )}
                 </div>
                 <CardContent className="p-3 space-y-1">
                   <h3 className="font-bold text-sm text-foreground line-clamp-1">{product.name}</h3>
