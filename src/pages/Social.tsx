@@ -56,15 +56,15 @@ export default function Social() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-5 flex items-center justify-between gap-3"
+        className="mb-4 flex items-center justify-between gap-3"
       >
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-            Communauté
+          <p className="text-[10px] uppercase tracking-widest text-primary font-bold">
+            Communauté FREAK OUT
           </p>
           <h1 className="font-display font-black text-2xl sm:text-3xl text-foreground leading-tight flex items-center gap-2">
             <Users className="w-6 h-6 text-primary shrink-0" />
-            <span className="truncate">Social</span>
+            <span className="truncate">Classement</span>
           </h1>
         </div>
         <motion.div
@@ -75,6 +75,34 @@ export default function Social() {
           <Trophy className="w-5 h-5 text-primary" />
         </motion.div>
       </motion.div>
+
+      {/* Community stats bar */}
+      {!loading && leaderboard.length > 0 && (() => {
+        const totalRunners = leaderboard.length;
+        const totalKm = leaderboard.reduce((s, e) => s + Number(e.total_km || 0), 0);
+        const totalFp = leaderboard.reduce((s, e) => s + Number(e.total_fp || 0), 0);
+        const myIdx = leaderboard.findIndex(e => e.user_id === user?.id);
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="grid grid-cols-4 gap-2 mb-5 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm p-3"
+          >
+            {[
+              { label: "Coureurs", value: totalRunners.toString() },
+              { label: "Km cumulés", value: totalKm.toFixed(0) },
+              { label: "FP total", value: totalFp.toFixed(0) },
+              { label: "Ton rang", value: myIdx >= 0 ? `#${myIdx + 1}` : "—" },
+            ].map((s, i) => (
+              <div key={i} className="text-center min-w-0">
+                <p className="font-display font-black text-sm sm:text-base text-foreground truncate">{s.value}</p>
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold truncate">{s.label}</p>
+              </div>
+            ))}
+          </motion.div>
+        );
+      })()}
 
       {loading && (
         <div className="flex items-center justify-center py-20">
