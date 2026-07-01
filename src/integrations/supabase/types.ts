@@ -438,6 +438,7 @@ export type Database = {
           max_fp_discount: number | null
           name: string
           price: number
+          stock_quantity: number | null
         }
         Insert: {
           category?: string | null
@@ -451,6 +452,7 @@ export type Database = {
           max_fp_discount?: number | null
           name: string
           price: number
+          stock_quantity?: number | null
         }
         Update: {
           category?: string | null
@@ -464,6 +466,7 @@ export type Database = {
           max_fp_discount?: number | null
           name?: string
           price?: number
+          stock_quantity?: number | null
         }
         Relationships: []
       }

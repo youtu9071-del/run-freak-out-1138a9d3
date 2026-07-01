@@ -39,14 +39,6 @@ export default function Dashboard() {
       });
   }, [user]);
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 6) return "Bonne nuit";
-    if (h < 12) return "Bonjour";
-    if (h < 18) return "Bon après-midi";
-    return "Bonsoir";
-  })();
-
   return (
     <div className="min-h-screen w-full max-w-lg mx-auto relative overflow-x-hidden px-3 sm:px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))]">
       {/* Ambient hero glow */}
@@ -59,8 +51,8 @@ export default function Dashboard() {
         className="flex items-center justify-between mb-5 sm:mb-7 gap-3"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-widest truncate">
-            {greeting}
+          <p className="text-[10px] sm:text-xs text-primary font-bold uppercase tracking-[0.28em] truncate">
+            FREAK OUT
           </p>
           <h1 className="font-display font-black text-2xl sm:text-3xl text-foreground leading-tight mt-0.5 truncate">
             {profile?.username || "Runner"}
