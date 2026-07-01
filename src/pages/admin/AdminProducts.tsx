@@ -13,11 +13,13 @@ interface ProductForm {
   fp_discount_rate: number;
   max_fp_discount: number;
   in_stock: boolean;
+  stock_quantity: number | null;
 }
 
 const empty: ProductForm = {
   name: "", description: "", price: 0, image_url: "",
   category: "equipment", currency: "EUR", fp_discount_rate: 0.1, max_fp_discount: 50, in_stock: true,
+  stock_quantity: null,
 };
 
 const currencySymbols: Record<string, string> = { EUR: "€", USD: "$", FCFA: "FCFA" };
@@ -61,7 +63,8 @@ export default function AdminProducts() {
       name: form.name, description: form.description, price: form.price,
       image_url: form.image_url || null, category: form.category, currency: form.currency,
       fp_discount_rate: form.fp_discount_rate, max_fp_discount: form.max_fp_discount,
-      in_stock: form.in_stock,
+      in_stock: form.stock_quantity !== null && form.stock_quantity <= 0 ? false : form.in_stock,
+      stock_quantity: form.stock_quantity,
     };
 
     if (editId) {
@@ -93,6 +96,7 @@ export default function AdminProducts() {
       currency: p.currency || "EUR",
       fp_discount_rate: p.fp_discount_rate || 0.1, max_fp_discount: p.max_fp_discount || 50,
       in_stock: p.in_stock ?? true,
+      stock_quantity: p.stock_quantity ?? null,
     });
     setEditId(p.id); setShowForm(true);
   };
@@ -177,9 +181,15 @@ export default function AdminProducts() {
             )}
           </div>
 
+          <div>
+            <label className="text-xs text-muted-foreground">Quantité disponible (laisser vide = illimité)</label>
+            <input type="number" min={0} placeholder="Illimité" value={form.stock_quantity ?? ""}
+              onChange={e => setForm({...form, stock_quantity: e.target.value === "" ? null : Math.max(0, +e.target.value)})}
+              className="w-full rounded-xl bg-secondary border border-border px-3 py-2 text-sm text-foreground" />
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.in_stock} onChange={e => setForm({...form, in_stock: e.target.checked})} />
-            En stock
+            Disponible à la vente
           </label>
           <div className="flex gap-2">
             <button onClick={handleSave} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm">
@@ -199,7 +209,7 @@ export default function AdminProducts() {
               {p.image_url && <img src={p.image_url} alt={p.name} className="w-10 h-10 rounded-lg object-cover" />}
               <div>
                 <p className="font-semibold text-sm">{p.name}</p>
-                <p className="text-xs text-muted-foreground">{formatPrice(p.price, p.currency || "EUR")} · {p.category} · {p.in_stock ? "En stock" : "Rupture"}</p>
+                <p className="text-xs text-muted-foreground">{formatPrice(p.price, p.currency || "EUR")} · {p.category} · {p.in_stock ? (p.stock_quantity !== null ? `${p.stock_quantity} en stock` : "En stock") : "Rupture"}</p>
               </div>
             </div>
             <div className="flex gap-2">
