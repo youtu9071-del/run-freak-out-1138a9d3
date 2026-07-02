@@ -61,10 +61,11 @@ export default function AdminEvents() {
     setForm(empty); setEditId(null); setShowForm(false); load();
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Supprimer définitivement l'événement « ${title} » ?\nL'historique des participations sera conservé.`)) return;
     const { error } = await supabase.from("events").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Supprimé"); load();
+    toast.success("Événement supprimé"); load();
   };
 
   const startEdit = (e: any) => {
@@ -143,7 +144,7 @@ export default function AdminEvents() {
             </div>
             <div className="flex gap-2">
               <button onClick={() => startEdit(e)} className="p-2 rounded-lg hover:bg-secondary"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
-              <button onClick={() => handleDelete(e.id)} className="p-2 rounded-lg hover:bg-destructive/20"><Trash2 className="w-4 h-4 text-destructive" /></button>
+              <button onClick={() => handleDelete(e.id, e.title)} className="p-2 rounded-lg hover:bg-destructive/20"><Trash2 className="w-4 h-4 text-destructive" /></button>
             </div>
           </div>
         ))}
