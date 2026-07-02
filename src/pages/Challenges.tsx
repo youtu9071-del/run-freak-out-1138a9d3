@@ -233,9 +233,20 @@ export default function Challenges() {
 
   const handleCreateTeam = async () => {
     if (!teamName.trim() || !user) return;
+    // Vérifier le rang côté client (GUERRIER DES PAVÉS III = 101 km)
+    const { data: prof } = await supabase.from("profiles").select("total_km").eq("user_id", user.id).maybeSingle();
+    if (!prof || Number(prof.total_km || 0) < 101) {
+      toast.error("Il faut atteindre le rang GUERRIER DES PAVÉS III (101 km) pour créer une équipe.");
+      return;
+    }
     setCreating(true);
     const { data: team, error } = await supabase.from("teams").insert({ name: teamName.trim(), creator_id: user.id }).select().single();
-    if (error) { toast.error("Erreur lors de la création"); setCreating(false); return; }
+    if (error) {
+      const msg = error.message?.includes("TEAM_LEVEL_REQUIRED")
+        ? "Rang GUERRIER DES PAVÉS III requis pour créer une équipe."
+        : "Erreur lors de la création";
+      toast.error(msg); setCreating(false); return;
+    }
 
     // Add creator
     await supabase.from("team_members").insert({ team_id: team.id, user_id: user.id, invited_by: user.id, status: "accepted" });
@@ -540,12 +551,21 @@ export default function Challenges() {
 
         {tab === "equipes" && view === "list" && (
           <motion.div key="equipes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-            <motion.button whileTap={{ scale: 0.97 }} onClick={() => { setView("create_team"); fetchFollowers(); }}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={async () => {
+                const km = Number((await supabase.from("profiles").select("total_km").eq("user_id", user!.id).maybeSingle()).data?.total_km || 0);
+                if (km < 101) {
+                  toast.error("Rang GUERRIER DES PAVÉS III (101 km) requis pour créer une équipe. Tu peux rejoindre une équipe existante ! 💪");
+                  return;
+                }
+                setView("create_team"); fetchFollowers();
+              }}
               className="w-full rounded-2xl gradient-primary p-5 flex items-center gap-4 neon-glow-strong">
               <Plus className="w-8 h-8 text-primary-foreground" />
               <div className="text-left">
                 <p className="font-display font-bold text-lg text-primary-foreground">CRÉER UNE ÉQUIPE</p>
-                <p className="text-xs text-primary-foreground/70">2 à 5 joueurs</p>
+                <p className="text-xs text-primary-foreground/70">Rang GUERRIER DES PAVÉS III+ requis</p>
               </div>
             </motion.button>
 

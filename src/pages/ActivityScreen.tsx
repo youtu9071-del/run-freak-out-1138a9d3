@@ -8,6 +8,7 @@ import { calculateFP, saveActivity } from "@/lib/freakPoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { lazy, Suspense } from "react";
+import { requestNotifPermission, showActivityNotification, hideActivityNotification } from "@/lib/activityNotification";
 
 const ActivityMap = lazy(() => import("@/components/ActivityMap"));
 
@@ -168,12 +169,34 @@ export default function ActivityScreen() {
     }
   }, [seconds, distance, state]);
 
+  // ─── Notification persistante course active (style FREAK-OUT) ───
+  useEffect(() => {
+    if (state !== "running") return;
+    showActivityNotification(seconds, distance);
+    const t = window.setInterval(() => showActivityNotification(seconds, distance), 5000);
+    return () => window.clearInterval(t);
+  }, [state, seconds, distance]);
+
+  useEffect(() => {
+    if (state === "idle" || state === "finished") hideActivityNotification();
+    document.title =
+      state === "running" || state === "paused"
+        ? `FREAK-OUT · ${distance.toFixed(2)} km`
+        : "FREAK OUT";
+    return () => { document.title = "FREAK OUT"; };
+  }, [state, distance]);
+
   // ─── Controls ───
-  const handleStart = () => { setState("running"); startGps(); };
+  const handleStart = async () => {
+    await requestNotifPermission();
+    setState("running");
+    startGps();
+  };
   const handlePause = () => { setState("paused"); stopGps(); };
   const handleResume = () => { setState("running"); startGps(); };
 
   const handleFinish = async () => {
+    hideActivityNotification();
     stopGps();
     setState("finished");
     const speed = seconds > 0 ? distance / (seconds / 3600) : 0;

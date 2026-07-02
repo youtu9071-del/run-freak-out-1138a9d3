@@ -246,7 +246,10 @@ export type Database = {
           completed: boolean
           completed_at: string | null
           distance_completed: number
-          event_id: string
+          event_distance_km: number | null
+          event_id: string | null
+          event_reward_fp: number | null
+          event_title: string | null
           fp_earned: number
           id: string
           joined_at: string
@@ -256,7 +259,10 @@ export type Database = {
           completed?: boolean
           completed_at?: string | null
           distance_completed?: number
-          event_id: string
+          event_distance_km?: number | null
+          event_id?: string | null
+          event_reward_fp?: number | null
+          event_title?: string | null
           fp_earned?: number
           id?: string
           joined_at?: string
@@ -266,7 +272,10 @@ export type Database = {
           completed?: boolean
           completed_at?: string | null
           distance_completed?: number
-          event_id?: string
+          event_distance_km?: number | null
+          event_id?: string | null
+          event_reward_fp?: number | null
+          event_title?: string | null
           fp_earned?: number
           id?: string
           joined_at?: string
@@ -721,6 +730,7 @@ export type Database = {
         Args: { p_challenge_id: string; p_team_id: string }
         Returns: undefined
       }
+      cleanup_expired_events: { Args: never; Returns: undefined }
       create_duel_invite: {
         Args: {
           p_challenged: string
