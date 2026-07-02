@@ -39,21 +39,34 @@ export default function Events() {
 
   useEffect(() => {
     loadData();
+    // cleanup + realtime subscription
+    supabase.rpc("cleanup_expired_events" as any).then(() => loadData());
+    const channel = supabase
+      .channel("events-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_participants" }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadData = async () => {
     if (!user) return;
-    
+
     const [eventsRes, partRes] = await Promise.all([
       supabase.from("events").select("*").order("start_date", { ascending: true }),
       supabase.from("event_participants").select("event_id, distance_completed, completed, fp_earned").eq("user_id", user.id),
     ]);
 
     if (eventsRes.data) {
-      setEvents(eventsRes.data as Event[]);
-      // Get participant counts
+      // Auto-mark ended events as completed locally + filter events older than 48h past end
+      const cutoff = Date.now() - 48 * 3600 * 1000;
+      const visible = (eventsRes.data as Event[])
+        .filter((e) => new Date(e.end_date).getTime() > cutoff)
+        .map((e) => (new Date(e.end_date).getTime() < Date.now() ? { ...e, status: "completed" } : e));
+      setEvents(visible);
       const counts: Record<string, number> = {};
-      for (const e of eventsRes.data) {
+      for (const e of visible) {
         const { count } = await supabase
           .from("event_participants")
           .select("*", { count: "exact", head: true })
@@ -150,10 +163,16 @@ export default function Events() {
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs font-bold uppercase ${getStatusColor(event.status)}`}>
-                            {getStatusLabel(event.status)}
-                          </span>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          {event.status === "completed" ? (
+                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">
+                              ⏱ Terminé
+                            </span>
+                          ) : (
+                            <span className={`text-xs font-bold uppercase ${getStatusColor(event.status)}`}>
+                              {getStatusLabel(event.status)}
+                            </span>
+                          )}
                         </div>
                         <h3 className="font-display font-bold text-lg text-foreground">{event.title}</h3>
                       </div>
