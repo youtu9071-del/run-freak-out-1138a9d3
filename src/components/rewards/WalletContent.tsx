@@ -47,7 +47,8 @@ export default function WalletContent() {
         return;
       }
       const cur = qr.product?.currency || "EUR";
-      const sym = cur === "FCFA" ? "FCFA" : cur === "USD" ? "$" : "€";
+      // Use plain ASCII currency codes in PDF (helvetica default WinAnsi renders € poorly on some readers)
+      const sym = cur === "FCFA" ? "FCFA" : cur === "USD" ? "USD" : "EUR";
       const fmt = (v: number) => cur === "FCFA" ? `${Number(v).toLocaleString()} ${sym}` : `${Number(v).toFixed(2)} ${sym}`;
       const dataUrl = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ unit: "mm", format: "a4" });
