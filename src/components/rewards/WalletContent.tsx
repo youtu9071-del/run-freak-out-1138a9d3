@@ -92,47 +92,64 @@ export default function WalletContent() {
       pdf.setLineWidth(0.6);
       pdf.rect(63, 64, 84, 84);
 
-      // Details box
+      // Details box — proper table layout, no more stray bars
+      const boxX = 20, boxY = 156, boxW = 170, rowH = 9;
+      const rows: [string, string][] = [];
+      if (qr.product?.price != null) rows.push(["Prix article", fmt(Number(qr.product.price))]);
+      rows.push(["FP utilisés", `${qr.fp_used} FP`]);
+      rows.push(["Réduction", `- ${fmt(Number(qr.discount_amount))}`]);
+      rows.push(["Total payé", fmt(Number(qr.total_price))]);
+      if (qr.expires_at) rows.push(["Expire le", new Date(qr.expires_at).toLocaleDateString("fr-FR")]);
+      rows.push(["Statut", String(qr.status).toUpperCase()]);
+
+      const headerH = 10;
+      const boxH = headerH + rows.length * rowH + 6;
+
+      // Container
       pdf.setDrawColor(220, 220, 220);
       pdf.setLineWidth(0.3);
-      pdf.roundedRect(20, 156, 170, 60, 3, 3);
+      pdf.roundedRect(boxX, boxY, boxW, boxH, 3, 3);
 
+      // Header band
+      pdf.setFillColor(34, 197, 94);
+      pdf.roundedRect(boxX, boxY, boxW, headerH, 3, 3, "F");
+      pdf.setFillColor(34, 197, 94);
+      pdf.rect(boxX, boxY + headerH - 3, boxW, 3, "F");
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(10);
-      pdf.setTextColor(34, 197, 94);
-      pdf.text("DÉTAILS DE LA COMMANDE", 25, 164);
+      pdf.setFontSize(9);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text("DETAILS DE LA COMMANDE", boxX + 5, boxY + 6.8);
 
+      // Rows
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(10);
-      pdf.setTextColor(40, 40, 40);
-      let y = 172;
-      const row = (label: string, value: string) => {
+      rows.forEach(([label, value], idx) => {
+        const y = boxY + headerH + 6 + idx * rowH;
+        // Zebra background for readability
+        if (idx % 2 === 1) {
+          pdf.setFillColor(247, 247, 247);
+          pdf.rect(boxX + 0.5, y - 5.5, boxW - 1, rowH, "F");
+        }
         pdf.setTextColor(110, 110, 110);
-        pdf.text(label, 25, y);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(label, boxX + 5, y);
         pdf.setTextColor(20, 20, 20);
         pdf.setFont("helvetica", "bold");
-        pdf.text(value, 185, y, { align: "right" });
-        pdf.setFont("helvetica", "normal");
-        y += 7;
-      };
-      if (qr.product?.price != null) row("Prix article", fmt(Number(qr.product.price)));
-      row("FP utilisés", String(qr.fp_used));
-      row("Réduction", fmt(Number(qr.discount_amount)));
-      row("Total payé", fmt(Number(qr.total_price)));
-      if (qr.expires_at) row("Expire le", new Date(qr.expires_at).toLocaleDateString("fr-FR"));
-      row("Statut", qr.status.toUpperCase());
+        pdf.text(value, boxX + boxW - 5, y, { align: "right" });
+      });
 
       // Footer
       pdf.setDrawColor(34, 197, 94);
       pdf.setLineWidth(0.4);
-      pdf.line(20, 260, 190, 260);
+      pdf.line(20, 262, 190, 262);
+      pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
       pdf.setTextColor(80, 80, 80);
-      pdf.text("Présentez ce QR code au partenaire pour récupérer votre produit.", 105, 268, { align: "center" });
+      pdf.text("Presentez ce QR code au partenaire pour recuperer votre produit.", 105, 270, { align: "center" });
       pdf.setFontSize(7);
       pdf.setTextColor(140, 140, 140);
-      pdf.text(`ID unique : ${qr.qr_uid || qr.id}`, 105, 274, { align: "center" });
-      pdf.text("Usage unique — toute deuxième tentative sera refusée.", 105, 279, { align: "center" });
+      pdf.text(`ID unique : ${qr.qr_uid || qr.id}`, 105, 276, { align: "center" });
+      pdf.text("Usage unique - toute deuxieme tentative sera refusee.", 105, 281, { align: "center" });
 
       pdf.save(`freakout-bon-${qr.product?.name || "achat"}-${qr.id.slice(0, 8)}.pdf`);
       toast.success("PDF téléchargé");
