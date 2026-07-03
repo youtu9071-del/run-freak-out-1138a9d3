@@ -165,9 +165,20 @@ export default function Events() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           {event.status === "completed" ? (
-                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">
-                              ⏱ Terminé
-                            </span>
+                            <>
+                              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">
+                                ⏱ Terminé
+                              </span>
+                              {(() => {
+                                const remainingMs = new Date(event.end_date).getTime() + 48 * 3600 * 1000 - Date.now();
+                                const remainingH = Math.max(0, Math.ceil(remainingMs / (1000 * 3600)));
+                                return (
+                                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30">
+                                    🗑 Disparition dans {remainingH}h
+                                  </span>
+                                );
+                              })()}
+                            </>
                           ) : (
                             <span className={`text-xs font-bold uppercase ${getStatusColor(event.status)}`}>
                               {getStatusLabel(event.status)}

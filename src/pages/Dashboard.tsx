@@ -51,13 +51,13 @@ export default function Dashboard() {
         className="flex items-center justify-between mb-5 sm:mb-7 gap-3"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] sm:text-xs text-primary font-bold uppercase tracking-[0.28em] truncate">
-            FREAK OUT
-          </p>
-          <h1 className="font-display font-black text-2xl sm:text-3xl text-foreground leading-tight mt-0.5 truncate">
-            {profile?.username || "Runner"}
-            <span className="text-gradient-primary">.</span>
+          <h1 className="font-display font-black text-3xl sm:text-4xl leading-none tracking-tight">
+            <span className="text-foreground">FREAK</span>
+            <span className="text-gradient-primary"> OUT</span>
           </h1>
+          <p className="text-[10px] sm:text-xs text-primary/80 font-bold uppercase tracking-[0.28em] mt-1">
+            Race · Earn · Dominate
+          </p>
         </div>
         <button
           onClick={() => navigate("/profile")}
