@@ -212,6 +212,37 @@ export default function Profile() {
         <Zap className="w-5 h-5 text-accent shrink-0" />
       </motion.button>
 
+      {/* Next milestone card */}
+      {level.maxKm !== Infinity && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="relative rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card/70 to-accent/10 backdrop-blur-md p-4 mb-4 overflow-hidden"
+        >
+          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-primary/20 blur-2xl" />
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-primary font-black mb-1">
+                🎯 Prochain palier
+              </p>
+              <p className="font-display font-black text-base truncate" style={{ color: nextLevel.color }}>
+                {nextLevel.name}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Encore <span className="font-bold text-foreground">{kmToNext.toFixed(1)} km</span> à parcourir
+              </p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-display font-black text-3xl text-gradient-primary">
+                {progress.toFixed(0)}<span className="text-sm">%</span>
+              </p>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground">Complété</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Challenge Invites */}
       <ChallengeInvites />
 
