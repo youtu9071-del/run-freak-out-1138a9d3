@@ -53,20 +53,30 @@ export default function MarketContent() {
   };
 
   const handleBuy = async (product: Product) => {
-    if (!user || !profile) return;
+    // 1. Wallet / auth check
+    if (!user || !profile) {
+      toast.error("Veuillez connecter votre portefeuille pour continuer");
+      return;
+    }
 
     const { discount, fpUsed } = fpToUse > 0 ? calculateDiscount(product, fpToUse) : { discount: 0, fpUsed: 0 };
 
-    // Pre-check FP balance from latest DB value to avoid stale profile cache
-    const { data: freshProfile } = await supabase
+    // 2. Fresh FP balance from DB (avoid stale cache)
+    const { data: freshProfile, error: profileErr } = await supabase
       .from("profiles")
       .select("total_fp")
       .eq("user_id", user.id)
       .single();
-    const currentFp = Number(freshProfile?.total_fp ?? userFp);
 
+    if (profileErr || !freshProfile) {
+      toast.error("Portefeuille indisponible, réessayez");
+      return;
+    }
+    const currentFp = Number(freshProfile.total_fp ?? 0);
+
+    // 3. Insufficient FP guard
     if (fpUsed > currentFp) {
-      toast.error(`FP insuffisants : tu as ${currentFp} FP, il en faut ${fpUsed} ❌`);
+      toast.error(`FP insuffisants (${currentFp}/${fpUsed})`);
       return;
     }
     if (fpUsed > product.max_fp_discount) {
@@ -117,10 +127,20 @@ export default function MarketContent() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full w-fit mb-4">
-        <Zap className="w-4 h-4 text-primary" />
-        <span className="text-sm font-bold text-primary">{userFp} FP disponibles</span>
-      </div>
+      {!user ? (
+        <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 mb-4 flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-destructive" />
+          <span className="text-xs font-bold text-destructive">
+            Veuillez connecter votre portefeuille pour continuer
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full w-fit mb-4">
+          <Wallet className="w-4 h-4 text-primary" />
+          <Zap className="w-4 h-4 text-primary" />
+          <span className="text-sm font-bold text-primary">{userFp} FP disponibles</span>
+        </div>
+      )}
 
       {products.length === 0 ? (
         <div className="text-center py-16">
@@ -233,12 +253,18 @@ export default function MarketContent() {
               )}
 
               <Button
-                className="w-full"
-                disabled={purchasing || fpToUse > userFp}
+                className="w-full gradient-primary"
+                disabled={purchasing || !user || fpToUse > userFp}
                 onClick={() => handleBuy(selectedProduct)}
               >
                 <Wallet className="w-4 h-4 mr-2" />
-                {purchasing ? "Traitement..." : "Acheter avec FP"}
+                {!user
+                  ? "Portefeuille non connecté"
+                  : fpToUse > userFp
+                    ? "FP insuffisants"
+                    : purchasing
+                      ? "Traitement..."
+                      : "Confirmer l'achat"}
               </Button>
             </div>
           )}

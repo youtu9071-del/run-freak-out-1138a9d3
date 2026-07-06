@@ -201,6 +201,22 @@ export default function ActivityScreen() {
     setState("finished");
     const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
     const result = analyzeSession(gpsPoints, steps, distance, speed);
+
+    // ─── No-movement guard : bloque toute attribution de FP si l'utilisateur n'a pas bougé ───
+    // Conditions cumulatives : distance mesurée < 50 m ET moins de 5 points GPS valides ET pas de pas détectés
+    const didNotMove =
+      distance < 0.05 &&
+      gpsPoints.length < 5 &&
+      steps < 20;
+
+    if (didNotMove) {
+      result.isBlocked = true;
+      result.status = "fraud";
+      result.alerts = [
+        ...result.alerts,
+        { level: "fraud", reason: "Aucun déplacement détecté — FP non attribués", timestamp: Date.now() },
+      ];
+    }
     setIntegrity(result);
 
     const fp = calculateFP(distance, steps);
