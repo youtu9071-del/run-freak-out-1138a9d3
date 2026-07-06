@@ -53,20 +53,30 @@ export default function MarketContent() {
   };
 
   const handleBuy = async (product: Product) => {
-    if (!user || !profile) return;
+    // 1. Wallet / auth check
+    if (!user || !profile) {
+      toast.error("Veuillez connecter votre portefeuille pour continuer");
+      return;
+    }
 
     const { discount, fpUsed } = fpToUse > 0 ? calculateDiscount(product, fpToUse) : { discount: 0, fpUsed: 0 };
 
-    // Pre-check FP balance from latest DB value to avoid stale profile cache
-    const { data: freshProfile } = await supabase
+    // 2. Fresh FP balance from DB (avoid stale cache)
+    const { data: freshProfile, error: profileErr } = await supabase
       .from("profiles")
       .select("total_fp")
       .eq("user_id", user.id)
       .single();
-    const currentFp = Number(freshProfile?.total_fp ?? userFp);
 
+    if (profileErr || !freshProfile) {
+      toast.error("Portefeuille indisponible, réessayez");
+      return;
+    }
+    const currentFp = Number(freshProfile.total_fp ?? 0);
+
+    // 3. Insufficient FP guard
     if (fpUsed > currentFp) {
-      toast.error(`FP insuffisants : tu as ${currentFp} FP, il en faut ${fpUsed} ❌`);
+      toast.error(`FP insuffisants (${currentFp}/${fpUsed})`);
       return;
     }
     if (fpUsed > product.max_fp_discount) {
