@@ -253,12 +253,18 @@ export default function MarketContent() {
               )}
 
               <Button
-                className="w-full"
-                disabled={purchasing || fpToUse > userFp}
+                className="w-full gradient-primary"
+                disabled={purchasing || !user || fpToUse > userFp}
                 onClick={() => handleBuy(selectedProduct)}
               >
                 <Wallet className="w-4 h-4 mr-2" />
-                {purchasing ? "Traitement..." : "Acheter avec FP"}
+                {!user
+                  ? "Portefeuille non connecté"
+                  : fpToUse > userFp
+                    ? "FP insuffisants"
+                    : purchasing
+                      ? "Traitement..."
+                      : "Confirmer l'achat"}
               </Button>
             </div>
           )}
