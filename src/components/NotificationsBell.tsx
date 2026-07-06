@@ -67,7 +67,7 @@ export default function NotificationsBell() {
   };
 
   return (
-    <div className="absolute right-4 top-4">
+    <div className="absolute right-4 z-40" style={{ top: "calc(env(safe-area-inset-top) + 1rem)" }}>
       <button
         onClick={() => {
           setOpen((v) => !v);
