@@ -1,214 +1,224 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { QrCode, Check, X, AlertTriangle, Search, ExternalLink, Copy } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { QrCode, Check, X, AlertTriangle, Camera, Loader2 } from "lucide-react";
+import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+interface QRInfo {
+  id: string;
+  qr_uid: string;
+  status: string;
+  product_name: string | null;
+  buyer_name: string | null;
+  fp_used: number;
+  discount_amount: number;
+  total_price: number;
+  created_at: string;
+  used_at: string | null;
+  expires_at: string | null;
+}
+
+const READER_ID = "admin-qr-reader";
+
 export default function AdminQRScanner() {
-  const [scanInput, setScanInput] = useState("");
-  const [scannedQR, setScannedQR] = useState<any>(null);
-  const [qrList, setQrList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [loadingLookup, setLoadingLookup] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [result, setResult] = useState<QRInfo | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const busyRef = useRef(false);
 
-  useEffect(() => {
-    fetchQRCodes();
-  }, []);
+  const extractUid = (raw: string): string | null => {
+    const t = raw.trim();
+    if (!t) return null;
+    const m = t.match(/scan\/([a-zA-Z0-9]+)/);
+    return m ? m[1] : t;
+  };
 
-  const fetchQRCodes = async () => {
-    const { data } = await supabase
-      .from("purchase_qrcodes")
-      .select("*, product:products(name)")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (data) {
-      const userIds = [...new Set(data.map((q: any) => q.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, username")
-        .in("user_id", userIds);
-      const enriched = data.map((q: any) => ({
-        ...q,
-        buyer_name: profiles?.find((p: any) => p.user_id === q.user_id)?.username || "Inconnu",
-      }));
-      setQrList(enriched);
+  const stopScanner = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); } catch { /* ignore */ }
+      try { await scannerRef.current.clear(); } catch { /* ignore */ }
+      scannerRef.current = null;
     }
-    setLoading(false);
+    setScanning(false);
   };
 
-  const extractUid = (input: string): string | null => {
-    const trimmed = input.trim();
-    if (!trimmed) return null;
-    // Accept full URL like https://.../scan/<uid>
-    const match = trimmed.match(/scan\/([a-f0-9]+)/i);
-    if (match) return match[1];
-    // Otherwise treat raw input as UID (legacy or already extracted)
-    return trimmed;
+  useEffect(() => () => { stopScanner(); }, []);
+
+  const handleDecoded = async (decoded: string) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    const uid = extractUid(decoded);
+    if (!uid) { busyRef.current = false; return; }
+
+    await stopScanner();
+    setLoadingLookup(true);
+    const { data, error } = await supabase.rpc("scan_qrcode_lookup" as any, { p_uid: uid });
+    setLoadingLookup(false);
+    busyRef.current = false;
+
+    if (error || !data || (data as any[]).length === 0) {
+      toast.error("QR code introuvable");
+      return;
+    }
+    setResult((data as any[])[0] as QRInfo);
   };
 
-  const handleSearch = async () => {
-    const uid = extractUid(scanInput);
-    if (!uid) return;
-    const found = qrList.find((q: any) => q.qr_uid === uid || q.id === uid);
-    if (found) {
-      setScannedQR(found);
-    } else {
-      // Try server lookup
-      const { data } = await supabase.rpc("scan_qrcode_lookup" as any, { p_uid: uid });
-      if (data && (data as any[]).length > 0) {
-        setScannedQR((data as any[])[0]);
-      } else {
-        setScannedQR(null);
-        toast.error("QR code non trouvé");
+  const startScanner = async () => {
+    setResult(null);
+    setScanning(true);
+    // Wait for DOM node to mount
+    setTimeout(async () => {
+      try {
+        const html5Qrcode = new Html5Qrcode(READER_ID);
+        scannerRef.current = html5Qrcode;
+        await html5Qrcode.start(
+          { facingMode: { exact: "environment" } as any },
+          { fps: 10, qrbox: { width: 260, height: 260 } },
+          (decoded) => { void handleDecoded(decoded); },
+          () => { /* ignore per-frame decode errors */ }
+        ).catch(async () => {
+          // Fallback if exact:environment fails
+          await html5Qrcode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 260, height: 260 } },
+            (decoded) => { void handleDecoded(decoded); },
+            () => {}
+          );
+        });
+      } catch (e: any) {
+        toast.error("Impossible d'ouvrir la caméra : " + (e?.message || "erreur"));
+        setScanning(false);
       }
-    }
+    }, 100);
   };
 
-  const handleValidate = async (qr: any) => {
+  const validate = async () => {
+    if (!result) return;
     setValidating(true);
-    const uid = qr.qr_uid || qr.id;
-    const { data, error } = await supabase.rpc("scan_qrcode_validate" as any, { p_uid: uid });
-    if (error) {
-      toast.error("Erreur de validation");
-    } else {
-      const row = (data as any[])?.[0];
-      if (row?.already_used) {
-        toast.error("⚠️ QR code déjà scanné !");
-      } else {
-        toast.success("QR code validé ✅");
-      }
-      setScannedQR(null);
-      fetchQRCodes();
-    }
+    const { data, error } = await supabase.rpc("scan_qrcode_validate" as any, { p_uid: result.qr_uid });
     setValidating(false);
+    if (error) { toast.error("Erreur de validation"); return; }
+    const row = (data as any[])?.[0];
+    if (row?.already_used) {
+      toast.error("⚠️ QR code déjà scanné !");
+      setResult({ ...result, status: "used", used_at: row.used_at });
+    } else {
+      toast.success("✅ QR code validé");
+      setResult({ ...result, status: "used", used_at: new Date().toISOString() });
+    }
   };
 
-  const copyLink = (qr: any) => {
-    const url = `${window.location.origin}/scan/${qr.qr_uid}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Lien copié");
-  };
+  const isExpired =
+    result?.expires_at && new Date(result.expires_at) < new Date() && result.status === "active";
 
-  const statusInfo = (s: string) => {
-    if (s === "active")
-      return { icon: <Check className="w-4 h-4 text-primary" />, text: "Valide", cls: "border-primary/30 bg-primary/5" };
-    if (s === "used")
-      return { icon: <X className="w-4 h-4 text-muted-foreground" />, text: "Déjà utilisé", cls: "border-muted bg-secondary" };
-    return { icon: <AlertTriangle className="w-4 h-4 text-destructive" />, text: "Expiré", cls: "border-destructive/30 bg-destructive/5" };
+  const statusBadge = () => {
+    if (!result) return null;
+    if (result.status === "used") return { label: "DÉJÀ UTILISÉ", cls: "bg-destructive/15 border-destructive text-destructive", icon: <X className="w-5 h-5" /> };
+    if (isExpired || result.status === "expired") return { label: "EXPIRÉ", cls: "bg-accent/15 border-accent text-accent", icon: <AlertTriangle className="w-5 h-5" /> };
+    return { label: "VALIDE", cls: "bg-primary/15 border-primary text-primary", icon: <Check className="w-5 h-5" /> };
   };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center py-8">
-        <div className="w-8 h-8 rounded-full border-4 border-muted border-t-primary animate-spin" />
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-card border border-border p-4">
-        <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-          <QrCode className="w-4 h-4 text-primary" /> Scanner un QR Code
-        </h3>
-        <div className="flex gap-2">
-          <Input
-            value={scanInput}
-            onChange={(e) => setScanInput(e.target.value)}
-            placeholder="Collez le lien ou l'ID du QR code..."
-            className="flex-1"
-          />
-          <Button onClick={handleSearch} size="sm">
-            <Search className="w-4 h-4" />
-          </Button>
-        </div>
-        <div className="mt-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
-          <p className="text-[11px] font-bold text-primary uppercase tracking-wider mb-1">🔗 Lien partenaire</p>
-          <p className="text-[11px] text-muted-foreground">
-            Chaque QR code possède son propre lien <code className="text-primary">/scan/...</code>. Cliquez sur "Lien" à côté d'un QR ci-dessous pour le copier et l'envoyer à votre partenaire. Le partenaire pourra le scanner ou l'ouvrir — la validation est <strong>atomique et à usage unique</strong> (toute seconde tentative est bloquée automatiquement).
-          </p>
-        </div>
+    <div className="max-w-md mx-auto space-y-4">
+      <div className="text-center">
+        <QrCode className="w-8 h-8 text-primary mx-auto mb-1" />
+        <h2 className="font-display font-black text-xl">Scanner un QR Code</h2>
+        <p className="text-xs text-muted-foreground">Caméra arrière — validation unique</p>
+      </div>
 
-        {scannedQR && (
+      {!scanning && !result && !loadingLookup && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <Button
+            onClick={startScanner}
+            className="w-full h-14 text-base gradient-primary neon-glow"
+          >
+            <Camera className="w-5 h-5 mr-2" />
+            Scanner un QR Code
+          </Button>
+        </motion.div>
+      )}
+
+      {scanning && (
+        <div className="rounded-2xl overflow-hidden border-2 border-primary/40 bg-black relative">
+          <div id={READER_ID} className="w-full" />
+          <div className="p-3 flex justify-center">
+            <Button variant="secondary" size="sm" onClick={stopScanner}>Annuler</Button>
+          </div>
+        </div>
+      )}
+
+      {loadingLookup && (
+        <div className="rounded-2xl bg-card border border-border p-6 flex items-center justify-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          <span className="text-sm">Lecture du QR code…</span>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {result && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`mt-4 rounded-xl border p-4 ${statusInfo(scannedQR.status).cls}`}
+            exit={{ opacity: 0 }}
+            className="rounded-2xl bg-card border border-border p-5 space-y-4"
           >
-            <div className="flex items-center gap-3 mb-3">
-              {statusInfo(scannedQR.status).icon}
-              <span className="font-bold text-sm">{statusInfo(scannedQR.status).text}</span>
+            {(() => {
+              const b = statusBadge();
+              return b ? (
+                <div className={`rounded-xl border-2 px-3 py-2 flex items-center gap-2 font-display font-black ${b.cls}`}>
+                  {b.icon}
+                  <span>{b.label}</span>
+                </div>
+              ) : null;
+            })()}
+
+            <div className="space-y-2 text-sm">
+              <Row label="Produit" value={result.product_name || "—"} />
+              <Row label="Utilisateur" value={result.buyer_name || "—"} />
+              <Row label="FP utilisés" value={String(result.fp_used)} />
+              <Row label="Réduction" value={Number(result.discount_amount).toFixed(2)} />
+              <Row label="Total payé" value={Number(result.total_price).toFixed(2)} />
+              <Row label="Émis le" value={new Date(result.created_at).toLocaleString("fr-FR")} />
+              {result.used_at && (
+                <Row label="Validé le" value={new Date(result.used_at).toLocaleString("fr-FR")} />
+              )}
             </div>
-            <div className="space-y-1 text-sm">
-              <p>Produit : <strong>{scannedQR.product?.name || scannedQR.product_name || "N/A"}</strong></p>
-              <p>Acheteur : <strong>{scannedQR.buyer_name || "Inconnu"}</strong></p>
-              <p>FP utilisés : <strong>{scannedQR.fp_used}</strong></p>
-              <p>Réduction : <strong>{scannedQR.discount_amount}</strong></p>
-              <p>Date : <strong>{new Date(scannedQR.created_at).toLocaleDateString("fr-FR")}</strong></p>
-              <p className="text-xs text-muted-foreground">UID : {scannedQR.qr_uid || scannedQR.id}</p>
-            </div>
-            {scannedQR.status === "active" && (
-              <Button
-                onClick={() => handleValidate(scannedQR)}
-                disabled={validating}
-                className="w-full mt-3"
-              >
-                <Check className="w-4 h-4 mr-2" /> {validating ? "Validation..." : "Valider le QR code"}
+
+            {result.status === "active" && !isExpired && (
+              <Button onClick={validate} disabled={validating} className="w-full gradient-primary">
+                <Check className="w-4 h-4 mr-2" />
+                {validating ? "Validation…" : "Valider le QR code"}
               </Button>
             )}
-            {scannedQR.status === "used" && (
-              <div className="mt-3 rounded-lg bg-destructive/10 border border-destructive p-3 text-center">
-                <AlertTriangle className="w-5 h-5 text-destructive mx-auto mb-1" />
-                <p className="text-xs font-bold text-destructive">DÉJÀ SCANNÉ</p>
-              </div>
-            )}
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => { setResult(null); startScanner(); }}
+            >
+              <Camera className="w-4 h-4 mr-2" />
+              Scanner un autre code
+            </Button>
           </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      <div>
-        <h3 className="font-bold text-sm mb-3">Tous les QR Codes ({qrList.length})</h3>
-        <div className="space-y-2 max-h-[28rem] overflow-y-auto">
-          {qrList.map((qr) => {
-            const st = statusInfo(qr.status);
-            return (
-              <div key={qr.id} className={`rounded-xl border p-3 flex items-center gap-3 text-sm ${st.cls}`}>
-                <button onClick={() => setScannedQR(qr)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                  {st.icon}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold truncate">{qr.product?.name || "Produit"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {qr.buyer_name} • {new Date(qr.created_at).toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold">{qr.fp_used} FP</span>
-                </button>
-                {qr.qr_uid && (
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => copyLink(qr)}
-                      className="text-[10px] flex items-center gap-1 text-primary hover:underline"
-                      title="Copier le lien"
-                    >
-                      <Copy className="w-3 h-3" /> Lien
-                    </button>
-                    <a
-                      href={`/scan/${qr.qr_uid}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[10px] flex items-center gap-1 text-primary hover:underline"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Ouvrir
-                    </a>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <p className="text-[11px] text-center text-muted-foreground">
+        Chaque QR code ne peut être validé qu'une seule fois.
+      </p>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-bold text-foreground truncate ml-2 max-w-[60%] text-right">{value}</span>
     </div>
   );
 }
