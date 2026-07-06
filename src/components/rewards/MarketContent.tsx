@@ -127,10 +127,20 @@ export default function MarketContent() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full w-fit mb-4">
-        <Zap className="w-4 h-4 text-primary" />
-        <span className="text-sm font-bold text-primary">{userFp} FP disponibles</span>
-      </div>
+      {!user ? (
+        <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 mb-4 flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-destructive" />
+          <span className="text-xs font-bold text-destructive">
+            Veuillez connecter votre portefeuille pour continuer
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full w-fit mb-4">
+          <Wallet className="w-4 h-4 text-primary" />
+          <Zap className="w-4 h-4 text-primary" />
+          <span className="text-sm font-bold text-primary">{userFp} FP disponibles</span>
+        </div>
+      )}
 
       {products.length === 0 ? (
         <div className="text-center py-16">
