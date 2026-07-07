@@ -18,6 +18,8 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import QRScan from "./pages/QRScan";
+import Partner from "./pages/Partner";
+import PartnerClaim from "./pages/PartnerClaim";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +39,7 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/scan/:uid" element={<QRScan />} />
+        <Route path="/partner/claim/:token" element={<Auth />} />
         <Route path="*" element={<Auth />} />
       </Routes>
     );
@@ -50,6 +53,8 @@ function AppRoutes() {
     <>
       <Routes>
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/partner" element={<Partner />} />
+        <Route path="/partner/claim/:token" element={<PartnerClaim />} />
         <Route path="/scan/:uid" element={<QRScan />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/activity" element={<ActivityScreen />} />
