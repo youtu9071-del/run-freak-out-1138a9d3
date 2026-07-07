@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ShoppingBag, Zap, Tag, Package, QrCode, Wallet } from "lucide-react";
+import { ShoppingBag, Zap, Tag, Package, QrCode, Wallet, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { QRCodeSVG } from "qrcode.react";
 
 interface Product {
@@ -25,7 +24,6 @@ interface Product {
 }
 
 const currencySymbols: Record<string, string> = { EUR: "€", USD: "$", FCFA: "FCFA" };
-
 const formatPrice = (price: number, currency: string) => {
   const sym = currencySymbols[currency] || currency;
   return currency === "FCFA" ? `${price.toLocaleString()} ${sym}` : `${price.toFixed(2)} ${sym}`;
@@ -36,74 +34,61 @@ export default function MarketContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [fpToUse, setFpToUse] = useState(0);
   const [purchasing, setPurchasing] = useState(false);
   const [generatedQR, setGeneratedQR] = useState<string | null>(null);
-  const userFp = profile?.total_fp || 0;
+  const userFp = Number(profile?.total_fp ?? 0);
 
-  useEffect(() => {
+  const loadProducts = () => {
     supabase.from("products").select("*").eq("in_stock", true).order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setProducts(data as Product[]); setLoading(false); });
-  }, []);
-
-  const calculateDiscount = (product: Product, fp: number) => {
-    const maxFpUsable = Math.min(fp, userFp, product.max_fp_discount);
-    const discount = maxFpUsable * product.fp_discount_rate;
-    return { discount: Math.min(discount, product.price * 0.5), fpUsed: maxFpUsable };
   };
+  useEffect(loadProducts, []);
 
   const handleBuy = async (product: Product) => {
-    // 1. Wallet / auth check
+    const requiredFp = Number(product.max_fp_discount ?? 0);
+
     if (!user || !profile) {
       toast.error("Veuillez connecter votre portefeuille pour continuer");
       return;
     }
 
-    const { discount, fpUsed } = fpToUse > 0 ? calculateDiscount(product, fpToUse) : { discount: 0, fpUsed: 0 };
-
-    // 2. Fresh FP balance from DB (avoid stale cache)
+    // 1. Fresh FP from DB (source of truth)
     const { data: freshProfile, error: profileErr } = await supabase
-      .from("profiles")
-      .select("total_fp")
-      .eq("user_id", user.id)
-      .single();
-
+      .from("profiles").select("total_fp").eq("user_id", user.id).maybeSingle();
     if (profileErr || !freshProfile) {
       toast.error("Portefeuille indisponible, réessayez");
       return;
     }
     const currentFp = Number(freshProfile.total_fp ?? 0);
 
-    // 3. Insufficient FP guard
-    if (fpUsed > currentFp) {
-      toast.error(`FP insuffisants (${currentFp}/${fpUsed})`);
-      return;
-    }
-    if (fpUsed > product.max_fp_discount) {
-      toast.error(`Réduction max : ${product.max_fp_discount} FP pour ce produit ❌`);
+    // Debug logs
+    console.log("[MARKET] Purchase check", {
+      userFp: currentFp, requiredFp, product: product.name, productId: product.id,
+      pass: currentFp >= requiredFp,
+    });
+
+    // 2. Hard block — FP insufficient
+    if (currentFp < requiredFp) {
+      toast.error(`FP insuffisants (${currentFp.toFixed(2)} / ${requiredFp} requis)`);
       return;
     }
     if (product.stock_quantity !== null && product.stock_quantity <= 0) {
-      toast.error("Produit épuisé ❌");
+      toast.error("Produit épuisé");
       return;
     }
 
     setPurchasing(true);
-
     const { data, error } = await supabase.rpc("purchase_with_fp" as any, {
       p_product_id: product.id,
-      p_fp_to_use: fpUsed,
+      p_fp_to_use: requiredFp,
     });
 
     if (error) {
       const msg = error.message || "";
-      if (msg.includes("INSUFFICIENT_FP")) {
-        toast.error("FP insuffisants ❌ — achat refusé");
-      } else if (msg.includes("OUT_OF_STOCK")) {
-        toast.error("Produit épuisé ❌");
-      } else {
-        toast.error("Erreur lors de l'achat");
-      }
+      console.error("[MARKET] Purchase error", msg);
+      if (msg.includes("INSUFFICIENT_FP")) toast.error("FP insuffisants — achat refusé");
+      else if (msg.includes("OUT_OF_STOCK")) toast.error("Produit épuisé");
+      else toast.error("Erreur lors de l'achat");
       setPurchasing(false);
       return;
     }
@@ -113,11 +98,9 @@ export default function MarketContent() {
     const scanUrl = `${window.location.origin}/scan/${scanUid}`;
 
     await refreshProfile();
-    // Refresh product stock in UI
-    supabase.from("products").select("*").eq("in_stock", true).order("created_at", { ascending: false })
-      .then(({ data }) => { if (data) setProducts(data as Product[]); });
+    loadProducts();
     setGeneratedQR(scanUrl);
-    toast.success("Paiement validé ! 🎉 QR code disponible dans Mes QR codes");
+    toast.success("Paiement validé ! 🎉");
     setPurchasing(false);
   };
 
@@ -130,15 +113,13 @@ export default function MarketContent() {
       {!user ? (
         <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 mb-4 flex items-center gap-2">
           <Wallet className="w-4 h-4 text-destructive" />
-          <span className="text-xs font-bold text-destructive">
-            Veuillez connecter votre portefeuille pour continuer
-          </span>
+          <span className="text-xs font-bold text-destructive">Veuillez connecter votre portefeuille pour continuer</span>
         </div>
       ) : (
         <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full w-fit mb-4">
           <Wallet className="w-4 h-4 text-primary" />
           <Zap className="w-4 h-4 text-primary" />
-          <span className="text-sm font-bold text-primary">{userFp} FP disponibles</span>
+          <span className="text-sm font-bold text-primary">{userFp.toFixed(2)} FP disponibles</span>
         </div>
       )}
 
@@ -149,127 +130,94 @@ export default function MarketContent() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {products.map((product, i) => (
-            <motion.div key={product.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
-              <Card className="overflow-hidden border-border cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { setSelectedProduct(product); setFpToUse(0); setGeneratedQR(null); }}>
-                <div className="h-28 bg-secondary flex items-center justify-center overflow-hidden relative">
-                  {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <Package className="w-10 h-10 text-muted-foreground" />}
-                  {product.stock_quantity !== null && (
-                    <span className={`absolute top-1.5 right-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md ${product.stock_quantity <= 0 ? "bg-destructive/80 text-destructive-foreground" : product.stock_quantity <= 5 ? "bg-accent/80 text-accent-foreground" : "bg-primary/80 text-primary-foreground"}`}>
-                      {product.stock_quantity <= 0 ? "Épuisé" : `${product.stock_quantity} dispo`}
-                    </span>
-                  )}
-                </div>
-                <CardContent className="p-3 space-y-1">
-                  <h3 className="font-bold text-sm text-foreground line-clamp-1">{product.name}</h3>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-foreground">{formatPrice(product.price, product.currency)}</span>
-                    <span className="text-[10px] text-primary flex items-center gap-0.5"><Tag className="w-3 h-3" /> -{(product.fp_discount_rate * 100).toFixed(0)}%/FP</span>
+          {products.map((product, i) => {
+            const requiredFp = Number(product.max_fp_discount ?? 0);
+            const canAfford = userFp >= requiredFp;
+            return (
+              <motion.div key={product.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
+                <Card className={`overflow-hidden border-border cursor-pointer transition-colors ${canAfford ? "hover:border-primary/50" : "opacity-70"}`}
+                  onClick={() => { setSelectedProduct(product); setGeneratedQR(null); }}>
+                  <div className="h-28 bg-secondary flex items-center justify-center overflow-hidden relative">
+                    {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <Package className="w-10 h-10 text-muted-foreground" />}
+                    {!canAfford && (
+                      <div className="absolute inset-0 bg-background/60 flex items-center justify-center backdrop-blur-sm">
+                        <Lock className="w-6 h-6 text-destructive" />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] text-accent">
-                    <Zap className="w-3 h-3" />
-                    <span>Max {product.max_fp_discount} FP</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                  <CardContent className="p-3 space-y-1">
+                    <h3 className="font-bold text-sm text-foreground line-clamp-1">{product.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">{formatPrice(product.price, product.currency)}</span>
+                      <span className="text-[10px] text-accent flex items-center gap-0.5"><Zap className="w-3 h-3" />{requiredFp} FP</span>
+                    </div>
+                    <div className={`text-[10px] font-bold ${canAfford ? "text-primary" : "text-destructive"}`}>
+                      {canAfford ? "✓ Disponible" : `Manque ${(requiredFp - userFp).toFixed(2)} FP`}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
       <Dialog open={!!selectedProduct} onOpenChange={() => { setSelectedProduct(null); setGeneratedQR(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle className="font-display">{selectedProduct?.name}</DialogTitle></DialogHeader>
-          {selectedProduct && !generatedQR && (
-            <div className="space-y-4">
-              {selectedProduct.image_url && (
-                <div className="h-48 bg-secondary rounded-lg overflow-hidden">
-                  <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
-                </div>
-              )}
-
-              {/* Admin metadata badges */}
-              <div className="flex flex-wrap gap-2">
-                {selectedProduct.category && (
-                  <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
-                    {selectedProduct.category}
-                  </span>
-                )}
-                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full border ${selectedProduct.in_stock ? "bg-primary/15 text-primary border-primary/30" : "bg-destructive/15 text-destructive border-destructive/30"}`}>
-                  {selectedProduct.in_stock ? "En stock" : "Rupture"}
-                </span>
-                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full bg-accent/15 text-accent border border-accent/30">
-                  {selectedProduct.currency}
-                </span>
-              </div>
-
-              {selectedProduct.description && (
-                <div className="rounded-lg bg-secondary/40 border border-border/60 p-3">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Description</p>
-                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selectedProduct.description}</p>
-                </div>
-              )}
-              <div className="space-y-2 bg-secondary/50 p-3 rounded-lg">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Prix</span>
-                  <span className="font-bold text-foreground">{formatPrice(selectedProduct.price, selectedProduct.currency)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Réduction max FP</span>
-                  <span className="text-accent font-bold">{selectedProduct.max_fp_discount} FP ({(selectedProduct.fp_discount_rate * 100).toFixed(0)}% / FP)</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Tes FP</span>
-                  <span className={`font-bold ${userFp >= selectedProduct.max_fp_discount ? "text-primary" : "text-muted-foreground"}`}>{userFp} FP</span>
-                </div>
-                <div className="text-[10px] text-muted-foreground italic border-t border-border/50 pt-2">
-                  Ex : produit à 100 {currencySymbols[selectedProduct.currency]} avec {(selectedProduct.fp_discount_rate * 100).toFixed(0)}% / FP →
-                  utiliser {Math.min(10, selectedProduct.max_fp_discount)} FP donne -{(Math.min(10, selectedProduct.max_fp_discount) * selectedProduct.fp_discount_rate * 100).toFixed(0)}%.
-                </div>
-                <div className="space-y-1 pt-2">
-                  <label className="text-xs text-muted-foreground">Utiliser des FP (max {Math.min(userFp, selectedProduct.max_fp_discount)})</label>
-                  <Input type="number" min={0} max={Math.min(userFp, selectedProduct.max_fp_discount)} value={fpToUse}
-                    onChange={(e) => setFpToUse(Math.max(0, Math.min(parseInt(e.target.value) || 0, Math.min(userFp, selectedProduct.max_fp_discount))))} />
-                </div>
-                {fpToUse > 0 && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-primary">Réduction FP</span>
-                      <span className="text-primary font-bold">-{formatPrice(calculateDiscount(selectedProduct, fpToUse).discount, selectedProduct.currency)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-bold">
-                      <span className="text-foreground">Total</span>
-                      <span className="text-foreground">{formatPrice(Math.max(selectedProduct.price - calculateDiscount(selectedProduct, fpToUse).discount, 0), selectedProduct.currency)}</span>
-                    </div>
+          {selectedProduct && !generatedQR && (() => {
+            const requiredFp = Number(selectedProduct.max_fp_discount ?? 0);
+            const canAfford = userFp >= requiredFp;
+            return (
+              <div className="space-y-4">
+                {selectedProduct.image_url && (
+                  <div className="h-48 bg-secondary rounded-lg overflow-hidden">
+                    <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
                   </div>
                 )}
-              </div>
-
-              {/* FP check warning */}
-              {fpToUse > userFp && (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-center">
-                  <p className="text-xs text-destructive font-bold">FP insuffisants ❌</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedProduct.category && (
+                    <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">{selectedProduct.category}</span>
+                  )}
+                  <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full bg-accent/15 text-accent border border-accent/30">{selectedProduct.currency}</span>
                 </div>
-              )}
-
-              <Button
-                className="w-full gradient-primary"
-                disabled={purchasing || !user || fpToUse > userFp}
-                onClick={() => handleBuy(selectedProduct)}
-              >
-                <Wallet className="w-4 h-4 mr-2" />
-                {!user
-                  ? "Portefeuille non connecté"
-                  : fpToUse > userFp
-                    ? "FP insuffisants"
-                    : purchasing
-                      ? "Traitement..."
-                      : "Confirmer l'achat"}
-              </Button>
-            </div>
-          )}
-
-          {/* QR Code generated */}
+                {selectedProduct.description && (
+                  <div className="rounded-lg bg-secondary/40 border border-border/60 p-3">
+                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selectedProduct.description}</p>
+                  </div>
+                )}
+                <div className="space-y-2 bg-secondary/50 p-3 rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Prix indicatif</span>
+                    <span className="font-bold text-foreground">{formatPrice(selectedProduct.price, selectedProduct.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Coût en FP</span>
+                    <span className="font-bold text-accent flex items-center gap-1"><Zap className="w-3 h-3" />{requiredFp} FP</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-border pt-2">
+                    <span className="text-muted-foreground">Ton solde</span>
+                    <span className={`font-bold ${canAfford ? "text-primary" : "text-destructive"}`}>{userFp.toFixed(2)} FP</span>
+                  </div>
+                </div>
+                {!canAfford && (
+                  <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-center">
+                    <Lock className="w-4 h-4 text-destructive mx-auto mb-1" />
+                    <p className="text-xs text-destructive font-bold">FP insuffisants pour cet achat</p>
+                    <p className="text-[10px] text-destructive/80">Manque {(requiredFp - userFp).toFixed(2)} FP</p>
+                  </div>
+                )}
+                <Button
+                  className="w-full gradient-primary"
+                  disabled={purchasing || !user || !canAfford}
+                  onClick={() => handleBuy(selectedProduct)}
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  {!user ? "Portefeuille non connecté" : !canAfford ? "FP insuffisants" : purchasing ? "Traitement..." : `Confirmer (${requiredFp} FP)`}
+                </Button>
+              </div>
+            );
+          })()}
           {generatedQR && (
             <div className="space-y-4 text-center">
               <div className="flex items-center justify-center gap-2 text-primary">
@@ -279,18 +227,9 @@ export default function MarketContent() {
               <div className="bg-white p-4 rounded-xl inline-block mx-auto">
                 <QRCodeSVG value={generatedQR} size={200} />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Présentez ce QR code à l'administrateur pour récupérer votre produit.
-              </p>
-              <p className="text-[11px] text-primary font-bold">
-                ✅ Enregistré automatiquement dans Portefeuille → Mes QR codes
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                Téléchargeable en PDF depuis ton portefeuille.
-              </p>
-              <Button variant="outline" onClick={() => { setSelectedProduct(null); setGeneratedQR(null); }}>
-                Fermer
-              </Button>
+              <p className="text-xs text-muted-foreground">Présentez ce QR code à l'administrateur ou au partenaire pour récupérer votre produit.</p>
+              <p className="text-[11px] text-primary font-bold">✅ Enregistré dans Portefeuille → Mes QR codes</p>
+              <Button variant="outline" onClick={() => { setSelectedProduct(null); setGeneratedQR(null); }}>Fermer</Button>
             </div>
           )}
         </DialogContent>
