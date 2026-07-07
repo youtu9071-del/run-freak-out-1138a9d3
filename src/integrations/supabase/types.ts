@@ -763,6 +763,7 @@ export type Database = {
         Args: { p_challenge_id: string; p_team_id: string }
         Returns: undefined
       }
+      claim_partner_invite: { Args: { p_token: string }; Returns: boolean }
       cleanup_expired_events: { Args: never; Returns: undefined }
       create_duel_invite: {
         Args: {
