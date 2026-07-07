@@ -38,17 +38,23 @@ export default function AdminTickets() {
     (async () => {
       const { data } = await supabase
         .from("purchase_qrcodes")
-        .select("id,qr_uid,status,created_at,used_at,scanned_by,fp_used,total_price,expires_at,products(name),profiles!purchase_qrcodes_user_id_fkey(username)")
+        .select("id,qr_uid,status,created_at,used_at,scanned_by,fp_used,total_price,expires_at,user_id,products(name)")
         .order("created_at", { ascending: false })
         .limit(200);
-      // Fetch scanner usernames
-      const scannerIds = Array.from(new Set((data || []).map((r: any) => r.scanned_by).filter(Boolean)));
-      let scannerMap: Record<string, string> = {};
-      if (scannerIds.length) {
-        const { data: sp } = await supabase.from("profiles").select("user_id, username").in("user_id", scannerIds);
-        scannerMap = Object.fromEntries((sp || []).map((s: any) => [s.user_id, s.username || ""]));
+      const rowsRaw = (data as any[]) || [];
+      const userIds = Array.from(new Set(rowsRaw.map((r) => r.user_id).filter(Boolean)));
+      const scannerIds = Array.from(new Set(rowsRaw.map((r) => r.scanned_by).filter(Boolean)));
+      const allIds = Array.from(new Set([...userIds, ...scannerIds]));
+      let map: Record<string, string> = {};
+      if (allIds.length) {
+        const { data: sp } = await supabase.from("profiles").select("user_id, username").in("user_id", allIds);
+        map = Object.fromEntries((sp || []).map((s: any) => [s.user_id, s.username || ""]));
       }
-      setRows(((data as any) || []).map((r: any) => ({ ...r, scanner: r.scanned_by ? { username: scannerMap[r.scanned_by] || null } : null })));
+      setRows(rowsRaw.map((r) => ({
+        ...r,
+        profiles: { username: map[r.user_id] || null },
+        scanner: r.scanned_by ? { username: map[r.scanned_by] || null } : null,
+      })));
     })();
   }, []);
 
