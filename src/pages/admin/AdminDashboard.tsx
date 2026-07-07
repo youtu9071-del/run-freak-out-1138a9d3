@@ -1,14 +1,15 @@
-import { useState } from "react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Calendar, ShoppingBag, Users, LogOut, QrCode, Swords } from "lucide-react";
+import { Shield, Calendar, ShoppingBag, Users, LogOut, QrCode, Swords, Handshake, Ticket } from "lucide-react";
 import AdminEvents from "./AdminEvents";
 import AdminProducts from "./AdminProducts";
 import AdminUsers from "./AdminUsers";
 import AdminQRScanner from "./AdminQRScanner";
 import AdminChallenges from "./AdminChallenges";
+import AdminPartners from "./AdminPartners";
+import AdminTickets from "./AdminTickets";
 
 export default function AdminDashboard() {
   const { isAdmin, loading } = useAdmin();
@@ -21,48 +22,48 @@ export default function AdminDashboard() {
       </div>
     );
   }
+  if (!user || !isAdmin) return <Navigate to="/" replace />;
 
-  if (!user || !isAdmin) {
-    return <Navigate to="/" replace />;
-  }
+  const tabs = [
+    { v: "events", i: Calendar, l: "Événements", c: <AdminEvents /> },
+    { v: "products", i: ShoppingBag, l: "Produits", c: <AdminProducts /> },
+    { v: "challenges", i: Swords, l: "Défis", c: <AdminChallenges /> },
+    { v: "tickets", i: Ticket, l: "Tickets", c: <AdminTickets /> },
+    { v: "scanner", i: QrCode, l: "Scanner", c: <AdminQRScanner /> },
+    { v: "partners", i: Handshake, l: "Partenaires", c: <AdminPartners /> },
+    { v: "users", i: Users, l: "Utilisateurs", c: <AdminUsers /> },
+  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Shield className="w-6 h-6 text-primary" />
-          <h1 className="font-display font-bold text-xl">Admin Panel</h1>
+      <header className="border-b border-border px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 bg-background/95 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
+            <Shield className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="font-display font-black text-lg leading-tight">Admin</h1>
+            <p className="text-[10px] text-muted-foreground leading-tight">FREAK OUT Control Panel</p>
+          </div>
         </div>
-        <button onClick={signOut} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <button onClick={signOut} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
           <LogOut className="w-4 h-4" /> Déconnexion
         </button>
       </header>
 
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-4 md:p-6">
         <Tabs defaultValue="events">
-          <TabsList className="w-full grid grid-cols-5 mb-6">
-            <TabsTrigger value="events" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" /> Événements
-            </TabsTrigger>
-            <TabsTrigger value="products" className="flex items-center gap-2">
-              <ShoppingBag className="w-4 h-4" /> Produits
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="w-4 h-4" /> Utilisateurs
-            </TabsTrigger>
-            <TabsTrigger value="qrcodes" className="flex items-center gap-2">
-              <QrCode className="w-4 h-4" /> QR Codes
-            </TabsTrigger>
-            <TabsTrigger value="challenges" className="flex items-center gap-2">
-              <Swords className="w-4 h-4" /> Défis
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="events"><AdminEvents /></TabsContent>
-          <TabsContent value="products"><AdminProducts /></TabsContent>
-          <TabsContent value="users"><AdminUsers /></TabsContent>
-          <TabsContent value="qrcodes"><AdminQRScanner /></TabsContent>
-          <TabsContent value="challenges"><AdminChallenges /></TabsContent>
+          <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0 mb-6">
+            <TabsList className="inline-flex md:grid md:grid-cols-7 w-max md:w-full gap-1">
+              {tabs.map((t) => (
+                <TabsTrigger key={t.v} value={t.v} className="flex items-center gap-1.5 whitespace-nowrap">
+                  <t.i className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t.l}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+          {tabs.map((t) => (<TabsContent key={t.v} value={t.v}>{t.c}</TabsContent>))}
         </Tabs>
       </div>
     </div>
