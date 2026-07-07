@@ -434,6 +434,39 @@ export type Database = {
           },
         ]
       }
+      partner_invites: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          note: string | null
+          token: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string | null
@@ -730,6 +763,7 @@ export type Database = {
         Args: { p_challenge_id: string; p_team_id: string }
         Returns: undefined
       }
+      claim_partner_invite: { Args: { p_token: string }; Returns: boolean }
       cleanup_expired_events: { Args: never; Returns: undefined }
       create_duel_invite: {
         Args: {
@@ -834,7 +868,7 @@ export type Database = {
       update_profile_stats: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "partner"
       challenge_invite_status: "pending" | "accepted" | "refused" | "expired"
       challenge_status:
         | "pending"
@@ -974,7 +1008,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "partner"],
       challenge_invite_status: ["pending", "accepted", "refused", "expired"],
       challenge_status: ["pending", "active", "completed", "open", "cancelled"],
       fitness_goal: ["perdre_poids", "endurance", "performance", "bien_etre"],
