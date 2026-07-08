@@ -1,6 +1,6 @@
 // Freak Points (FP) calculation system
-// 10 km = 5 FP
-// 1000 steps = 2 FP
+// Calcul basé UNIQUEMENT sur la distance parcourue.
+// 10 km = 5 FP  →  1 km = 0.5 FP
 
 export interface CompletedActivity {
   id: string;
@@ -16,11 +16,10 @@ export interface CompletedActivity {
   status: "clean" | "suspect" | "fraud";
 }
 
-export function calculateFP(distanceKm: number, steps: number): { fpFromKm: number; fpFromSteps: number; totalFp: number } {
-  const fpFromKm = (distanceKm / 10) * 5;
-  const fpFromSteps = (steps / 1000) * 2;
-  const totalFp = Math.round((fpFromKm + fpFromSteps) * 100) / 100;
-  return { fpFromKm: Math.round(fpFromKm * 100) / 100, fpFromSteps: Math.round(fpFromSteps * 100) / 100, totalFp };
+export function calculateFP(distanceKm: number, _steps: number = 0): { fpFromKm: number; fpFromSteps: number; totalFp: number } {
+  const fpFromKm = Math.round(((distanceKm / 10) * 5) * 100) / 100;
+  // Les pas ne rapportent plus de FP — seule la distance compte.
+  return { fpFromKm, fpFromSteps: 0, totalFp: fpFromKm };
 }
 
 const STORAGE_KEY = "freakout-activities";
