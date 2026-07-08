@@ -3,20 +3,24 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", () => {});
 
-// Click sur la notification de course → revenir dans l'app
+// Click sur une notification FREAK-OUT → toujours ouvrir/mettre au premier plan
+// l'application et rediriger vers la page d'accueil ("/"). Jamais de 404.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const HOME = "/";
   event.waitUntil(
     (async () => {
-      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      for (const client of clients) {
+      const allClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of allClients) {
         if ("focus" in client) {
-          await client.focus();
-          if ("navigate" in client) client.navigate("/activity");
+          try { await client.focus(); } catch { /* ignore */ }
+          if ("navigate" in client) {
+            try { await client.navigate(HOME); } catch { /* ignore */ }
+          }
           return;
         }
       }
-      if (self.clients.openWindow) await self.clients.openWindow("/activity");
+      if (self.clients.openWindow) await self.clients.openWindow(HOME);
     })()
   );
 });
@@ -25,15 +29,15 @@ self.addEventListener("notificationclick", (event) => {
 self.addEventListener("message", async (event) => {
   const data = event.data || {};
   if (data.type === "SHOW_ACTIVITY_NOTIFICATION") {
-    await self.registration.showNotification("FREAK-OUT · Course en cours", {
-      body: `${data.time} • ${data.distance} km`,
+    await self.registration.showNotification("FREAK-OUT", {
+      body: `Course en cours · ${data.time} • ${data.distance} km`,
       tag: "freakout-activity",
       renotify: false,
       silent: true,
       requireInteraction: true,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: "/activity" },
+      data: { url: "/" },
     });
   }
   if (data.type === "HIDE_ACTIVITY_NOTIFICATION") {

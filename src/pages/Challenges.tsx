@@ -365,20 +365,60 @@ export default function Challenges() {
   const activeChallenges = challenges.filter((c) => c.status === "active");
   const completedChallenges = challenges.filter((c) => c.status === "completed");
 
+  const stats = {
+    open: openChallenges.length,
+    active: activeChallenges.length,
+    won: completedChallenges.filter((c) =>
+      teams.some((t) => t.id === c.winner_team_id)
+    ).length,
+    teams: teams.length,
+  };
+
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto">
-      <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="font-display font-black text-2xl mb-4">
-        Défis ⚔️
-      </motion.h1>
+      {/* HEADER */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center neon-glow">
+            <Swords className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="font-display font-black text-2xl leading-none">Arène des Défis</h1>
+            <p className="text-xs text-muted-foreground mt-1">Affronte, gagne, domine.</p>
+          </div>
+        </div>
+      </motion.div>
 
-      <div className="flex gap-2 mb-6">
+      {/* STATS OVERVIEW */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="grid grid-cols-4 gap-2 mb-5"
+      >
+        {[
+          { label: "Ouverts", value: stats.open, icon: Rocket, color: "text-accent" },
+          { label: "En cours", value: stats.active, icon: Play, color: "text-primary" },
+          { label: "Gagnés", value: stats.won, icon: Trophy, color: "text-primary" },
+          { label: "Équipes", value: stats.teams, icon: Users, color: "text-foreground" },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="rounded-xl bg-card border border-border p-2.5 text-center">
+            <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
+            <p className="font-display font-black text-lg leading-none">{value}</p>
+            <p className="text-[9px] uppercase tracking-wide text-muted-foreground mt-1">{label}</p>
+          </div>
+        ))}
+      </motion.div>
+
+      {/* TABS */}
+      <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-secondary/50 border border-border">
         {([
           { id: "defis" as Tab, label: "Défis", icon: Swords },
           { id: "equipes" as Tab, label: "Équipes", icon: Users },
         ]).map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => { setTab(id); setView("list"); }}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-              tab === id ? "gradient-primary text-primary-foreground neon-glow" : "bg-secondary text-secondary-foreground"
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              tab === id ? "gradient-primary text-primary-foreground neon-glow" : "text-muted-foreground hover:text-foreground"
             }`}>
             <Icon className="w-4 h-4" /> {label}
           </button>

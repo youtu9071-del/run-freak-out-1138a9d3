@@ -423,36 +423,35 @@ export default function ActivityScreen() {
             )}
             {state === "finished" && (
               <motion.div key="finished" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center w-full">
-                {integrity && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                    className={`rounded-xl p-4 mb-4 border flex items-center gap-3 ${
-                      integrity.status === "clean" ? "bg-primary/10 border-primary/30" :
-                      integrity.status === "suspect" ? "bg-accent/10 border-accent/30" :
-                      "bg-destructive/10 border-destructive/30"
-                    }`}>
-                    {integrityIcon()}
-                    <div className="text-left flex-1">
-                      <p className="font-display font-bold text-sm">
-                        {integrity.status === "clean" ? "Session vérifiée ✓" :
-                         integrity.status === "suspect" ? "Session suspecte ⚠️" :
-                         "Session bloquée 🚫"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Confiance : {integrity.confidence}% {integrity.alerts.length > 0 && `• ${integrity.alerts.length} alerte(s)`}
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-
-                <p className="font-display font-black text-2xl text-primary neon-text mb-2">
+                <p className="font-display font-black text-2xl text-primary neon-text mb-4">
                   {integrity?.isBlocked ? "SESSION REJETÉE 🚫" : "COURSE TERMINÉE ! 🎉"}
                 </p>
-                <p className="text-sm text-muted-foreground mb-1">
-                  {steps > 0 && `${steps} pas • `}{gpsPoints.length} points GPS
-                </p>
-                {savedFp !== null && !integrity?.isBlocked && (
-                  <p className="text-lg font-bold text-primary mb-4">+{savedFp.toFixed(1)} Freak Points 💰</p>
-                )}
+
+                <div className="grid grid-cols-2 gap-3 mb-5 text-left">
+                  <div className="rounded-xl bg-card border border-border p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Distance</p>
+                    <p className="font-display font-black text-xl text-foreground">{distance.toFixed(2)} <span className="text-xs text-muted-foreground">km</span></p>
+                  </div>
+                  <div className="rounded-xl bg-card border border-border p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Temps</p>
+                    <p className="font-display font-black text-xl text-foreground">{formatTime(seconds)}</p>
+                  </div>
+                  <div className="rounded-xl bg-card border border-border p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pas</p>
+                    <p className="font-display font-black text-xl text-foreground">{steps}</p>
+                  </div>
+                  <div className="rounded-xl bg-card border border-border p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Calories</p>
+                    <p className="font-display font-black text-xl text-foreground">{calories} <span className="text-xs text-muted-foreground">kcal</span></p>
+                  </div>
+                  <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 col-span-2 neon-glow">
+                    <p className="text-[10px] uppercase tracking-wide text-primary/80">FP gagnés</p>
+                    <p className="font-display font-black text-2xl text-primary">
+                      {integrity?.isBlocked ? "0" : `+${(savedFp ?? 0).toFixed(1)}`}
+                    </p>
+                  </div>
+                </div>
+
                 {integrity?.isBlocked && (
                   <p className="text-sm text-destructive mb-4">Aucun point attribué</p>
                 )}
