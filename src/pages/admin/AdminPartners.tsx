@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Copy, Link2, Trash2, Users, Check } from "lucide-react";
+import { Copy, Link2, Trash2, Users, Check, UserPlus } from "lucide-react";
 
 interface Invite {
   id: string; token: string; note: string | null;
@@ -18,6 +18,8 @@ export default function AdminPartners() {
   const [note, setNote] = useState("");
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<{ user_id: string; username: string | null }[]>([]);
 
   const load = async () => {
     const { data } = await supabase.from("partner_invites" as any).select("*").order("created_at", { ascending: false });
@@ -48,6 +50,32 @@ export default function AdminPartners() {
     setCopied(token);
     setTimeout(() => setCopied(null), 1500);
     toast.success("Lien copié");
+  };
+
+  const searchUsers = async (term: string) => {
+    if (!term.trim()) { setResults([]); return; }
+    const { data } = await supabase
+      .from("profiles")
+      .select("user_id, username")
+      .ilike("username", `%${term.trim()}%`)
+      .limit(8);
+    setResults((data as any) || []);
+  };
+
+  const promote = async (userId: string) => {
+    const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "partner" as any });
+    if (error && !error.message.includes("duplicate")) { toast.error("Erreur : " + error.message); return; }
+    toast.success("Partenaire nommé");
+    setSearch(""); setResults([]);
+    load();
+  };
+
+  const revoke = async (userId: string) => {
+    if (!confirm("Retirer le rôle partenaire ?")) return;
+    const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "partner" as any);
+    if (error) { toast.error("Erreur"); return; }
+    toast.success("Rôle retiré");
+    load();
   };
 
   const remove = async (id: string) => {
