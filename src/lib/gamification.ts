@@ -3,24 +3,31 @@ export interface Level {
   minKm: number;
   maxKm: number;
   tier: number;
+  /** Raw HSL triplet (no hsl() wrapper) — used for CSS variable theming */
+  hsl: string;
   color: string;
 }
 
+const mk = (name: string, minKm: number, maxKm: number, tier: number, hsl: string): Level => ({
+  name, minKm, maxKm, tier, hsl, color: `hsl(${hsl})`,
+});
+
 export const LEVELS: Level[] = [
-  { name: "ROOKIE I", minKm: 0, maxKm: 20, tier: 1, color: "hsl(220 10% 50%)" },
-  { name: "ROOKIE II", minKm: 21, maxKm: 40, tier: 2, color: "hsl(220 10% 60%)" },
-  { name: "ROOKIE III", minKm: 41, maxKm: 60, tier: 3, color: "hsl(220 10% 70%)" },
-  { name: "GUERRIER DES PAVÉS I", minKm: 61, maxKm: 80, tier: 4, color: "hsl(30 80% 50%)" },
-  { name: "GUERRIER DES PAVÉS II", minKm: 81, maxKm: 100, tier: 5, color: "hsl(30 90% 55%)" },
-  { name: "GUERRIER DES PAVÉS III", minKm: 101, maxKm: 120, tier: 6, color: "hsl(25 100% 55%)" },
-  { name: "MACHINE DE GUERRE I", minKm: 121, maxKm: 140, tier: 7, color: "hsl(0 70% 50%)" },
-  { name: "MACHINE DE GUERRE II", minKm: 141, maxKm: 160, tier: 8, color: "hsl(0 80% 55%)" },
-  { name: "MACHINE DE GUERRE III", minKm: 161, maxKm: 180, tier: 9, color: "hsl(350 90% 55%)" },
-  { name: "FREAK I", minKm: 181, maxKm: 200, tier: 10, color: "hsl(145 80% 50%)" },
-  { name: "FREAK II", minKm: 201, maxKm: 220, tier: 11, color: "hsl(145 80% 55%)" },
-  { name: "FREAK III", minKm: 221, maxKm: 250, tier: 12, color: "hsl(145 90% 60%)" },
-  { name: "FREAK MASTER", minKm: 251, maxKm: Infinity, tier: 13, color: "hsl(50 100% 50%)" },
+  mk("ROOKIE I", 0, 20, 1, "152 76% 45%"),
+  mk("ROOKIE II", 21, 40, 2, "172 75% 46%"),
+  mk("ROOKIE III", 41, 60, 3, "189 94% 50%"),
+  mk("GUERRIER DES PAVÉS I", 61, 80, 4, "217 85% 52%"),
+  mk("GUERRIER DES PAVÉS II", 81, 100, 5, "224 90% 60%"),
+  mk("GUERRIER DES PAVÉS III", 101, 120, 6, "245 75% 58%"),
+  mk("MACHINE DE GUERRE I", 121, 140, 7, "265 75% 58%"),
+  mk("MACHINE DE GUERRE II", 141, 160, 8, "275 85% 62%"),
+  mk("MACHINE DE GUERRE III", 161, 180, 9, "300 85% 58%"),
+  mk("FREAK I", 181, 200, 10, "32 96% 54%"),
+  mk("FREAK II", 201, 220, 11, "12 90% 58%"),
+  mk("FREAK III", 221, 250, 12, "350 85% 48%"),
+  mk("FREAK MASTER", 251, Infinity, 13, "45 92% 52%"),
 ];
+
 
 export function getLevel(totalKm: number): Level {
   return LEVELS.find(l => totalKm >= l.minKm && totalKm <= l.maxKm) || LEVELS[0];
