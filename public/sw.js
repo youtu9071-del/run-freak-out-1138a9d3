@@ -7,7 +7,7 @@ self.addEventListener("fetch", () => {});
 // l'application et rediriger vers la page d'accueil ("/"). Jamais de 404.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const HOME = "/";
+  const HOME = (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil(
     (async () => {
       const allClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
@@ -37,7 +37,7 @@ self.addEventListener("message", async (event) => {
       requireInteraction: true,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: "/" },
+      data: { url: "/activity" },
     });
   }
   if (data.type === "HIDE_ACTIVITY_NOTIFICATION") {
