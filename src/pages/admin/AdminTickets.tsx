@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Ticket, Search } from "lucide-react";
+import { Ticket, Search, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface Row {
   id: string;
@@ -33,6 +35,14 @@ const statusLabel = (s: string, expired: boolean) => {
 export default function AdminTickets() {
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
+
+  const removeTicket = async (id: string) => {
+    if (!confirm("Supprimer définitivement ce ticket ?")) return;
+    const { error } = await supabase.from("purchase_qrcodes").delete().eq("id", id);
+    if (error) { toast.error("Suppression impossible"); return; }
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Ticket supprimé");
+  };
 
   useEffect(() => {
     (async () => {
@@ -102,6 +112,11 @@ export default function AdminTickets() {
                   <div><span className="text-muted-foreground">Créé: </span><span className="font-bold">{new Date(r.created_at).toLocaleString("fr-FR")}</span></div>
                   {r.used_at && <div><span className="text-muted-foreground">Scanné: </span><span className="font-bold">{new Date(r.used_at).toLocaleString("fr-FR")}</span></div>}
                   {r.scanner && <div className="col-span-2"><span className="text-muted-foreground">Partenaire: </span><span className="font-bold text-primary">{r.scanner.username || "—"}</span></div>}
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => removeTicket(r.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
