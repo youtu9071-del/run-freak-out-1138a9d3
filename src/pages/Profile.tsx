@@ -269,6 +269,18 @@ export default function Profile() {
         ))}
       </div>
 
+      {/* Accès partenaire (scanner QR) */}
+      {(isPartner || isAdmin) && (
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => navigate("/partner")}
+          className="w-full rounded-2xl bg-accent/10 border border-accent/30 p-3.5 text-center mb-3 flex items-center justify-center gap-2"
+        >
+          <ScanLine className="w-4 h-4 text-accent" />
+          <p className="font-display font-bold text-xs text-accent uppercase tracking-widest">Scanner partenaire</p>
+        </motion.button>
+      )}
+
       {/* Admin */}
       {isAdmin && (
         <motion.button
@@ -280,6 +292,7 @@ export default function Profile() {
           <p className="font-display font-bold text-xs text-primary uppercase tracking-widest">Panel Admin</p>
         </motion.button>
       )}
+
 
       {/* Logout */}
       <motion.button
