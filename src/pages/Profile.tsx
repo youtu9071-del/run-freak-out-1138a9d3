@@ -269,8 +269,8 @@ export default function Profile() {
         ))}
       </div>
 
-      {/* Accès partenaire (scanner QR) */}
-      {(isPartner || isAdmin) && (
+      {/* Accès partenaire (scanner QR) — masqué pour les admins */}
+      {isPartner && !isAdmin && (
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate("/partner")}
@@ -280,6 +280,7 @@ export default function Profile() {
           <p className="font-display font-bold text-xs text-accent uppercase tracking-widest">Scanner partenaire</p>
         </motion.button>
       )}
+
 
       {/* Admin */}
       {isAdmin && (
