@@ -192,6 +192,52 @@ export default function ActivityScreen() {
     return () => { document.title = "FREAK OUT"; };
   }, [state, distance]);
 
+  // ─── Reprise automatique d'une course en cours (retour via notification) ───
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const raw = localStorage.getItem(RUN_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved || (saved.state !== "running" && saved.state !== "paused")) return;
+      const elapsedSinceSave = saved.state === "running" && saved.savedAt
+        ? Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000))
+        : 0;
+      setSeconds((saved.seconds || 0) + elapsedSinceSave);
+      setDistance(saved.distance || 0);
+      setSteps(saved.steps || 0);
+      const pts: GpsPoint[] = saved.gpsPoints || [];
+      setGpsPoints(pts);
+      if (pts.length) {
+        lastPointRef.current = pts[pts.length - 1];
+        setInitialPos({ lat: pts[pts.length - 1].lat, lng: pts[pts.length - 1].lng });
+      }
+      setState(saved.state);
+      if (saved.state === "running") startGps();
+    } catch { /* ignore */ }
+  }, [startGps]);
+
+  // ─── Sauvegarde continue de l'état de la course ───
+  useEffect(() => {
+    if (state === "running" || state === "paused") {
+      localStorage.setItem(
+        RUN_KEY,
+        JSON.stringify({
+          state,
+          seconds,
+          distance,
+          steps,
+          gpsPoints: gpsPoints.slice(-400),
+          savedAt: Date.now(),
+        })
+      );
+    } else {
+      localStorage.removeItem(RUN_KEY);
+    }
+  }, [state, seconds, distance, steps, gpsPoints]);
+
+
   // ─── Controls ───
   const handleStart = async () => {
     await requestNotifPermission();
