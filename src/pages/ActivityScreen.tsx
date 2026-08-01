@@ -30,6 +30,12 @@ export default function ActivityScreen() {
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
+  const restoredRef = useRef(false);
+
+  // ─── Persistance de la course (reprise automatique après fermeture / notification) ───
+  const RUN_KEY = "freakout_active_run";
+
+
 
   // ─── Pedometer ───
   useEffect(() => {
