@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap } from "lucide-react";
+import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel, getLevelProgress, LEVELS } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
@@ -16,7 +16,7 @@ export default function Profile() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [uploading, setUploading] = useState(false);
-  const { isAdmin } = useAdmin();
+  const { isAdmin, isPartner } = useAdmin();
   const navigate = useNavigate();
 
   const totalKm = Number(profile?.total_km || 0);
