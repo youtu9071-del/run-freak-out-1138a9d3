@@ -101,15 +101,48 @@ export default function AdminPartners() {
         </div>
       </div>
 
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-primary" />
+            <h3 className="font-display font-bold">Nommer un partenaire</h3>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Rechercher un utilisateur…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); searchUsers(e.target.value); }}
+            />
+          </div>
+          <div className="space-y-2">
+            {results.map((u) => (
+              <div key={u.user_id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-2">
+                <span className="text-sm font-bold truncate">{u.username || u.user_id.slice(0, 8)}</span>
+                <Button size="sm" className="gradient-primary" onClick={() => promote(u.user_id)}>Nommer</Button>
+              </div>
+            ))}
+            {search && results.length === 0 && <p className="text-xs text-muted-foreground">Aucun utilisateur trouvé</p>}
+          </div>
+        </CardContent>
+      </Card>
+
       <div>
         <h3 className="font-display font-bold mb-2 flex items-center gap-2"><Users className="w-4 h-4" /> Partenaires actifs ({partners.length})</h3>
         <div className="grid gap-2">
           {partners.length === 0 && <p className="text-sm text-muted-foreground">Aucun partenaire</p>}
           {partners.map((p) => (
-            <Card key={p.user_id}><CardContent className="p-3 text-sm font-bold">{p.username || p.user_id.slice(0, 8)}</CardContent></Card>
+            <Card key={p.user_id}>
+              <CardContent className="p-3 flex items-center justify-between gap-2">
+                <span className="text-sm font-bold truncate">{p.username || p.user_id.slice(0, 8)}</span>
+                <Button size="sm" variant="ghost" onClick={() => revoke(p.user_id)}>
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
     </div>
   );
 }
+
