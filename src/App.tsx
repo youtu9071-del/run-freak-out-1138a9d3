@@ -53,7 +53,9 @@ function AppRoutes() {
 
   return (
     <>
+      <LevelTheme />
       <Routes>
+
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/partner" element={<Partner />} />
         <Route path="/partner/claim/:token" element={<PartnerClaim />} />
