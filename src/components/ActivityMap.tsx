@@ -12,9 +12,11 @@ interface GpsPoint {
 interface ActivityMapProps {
   gpsPoints: GpsPoint[];
   initialPosition?: { lat: number; lng: number } | null;
+  /** Increment this value to recenter the map on the current position */
+  recenterKey?: number;
 }
 
-export default function ActivityMap({ gpsPoints, initialPosition }: ActivityMapProps) {
+export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 0 }: ActivityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
@@ -126,6 +128,18 @@ export default function ActivityMap({ gpsPoints, initialPosition }: ActivityMapP
     // Auto-center on user
     map.setView(last, map.getZoom() < 14 ? 16 : map.getZoom(), { animate: true });
   }, [gpsPoints]);
+
+  // Manual recenter
+  useEffect(() => {
+    if (!recenterKey) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const last = gpsPoints[gpsPoints.length - 1];
+    const target = last ? [last.lat, last.lng] : initialPosition ? [initialPosition.lat, initialPosition.lng] : null;
+    if (!target) return;
+    map.setView(target as [number, number], 17, { animate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recenterKey]);
 
   return <div ref={containerRef} className="w-full h-full z-0" style={{ background: "hsl(var(--muted))" }} />;
 }
