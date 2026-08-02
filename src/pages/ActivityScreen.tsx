@@ -27,6 +27,8 @@ export default function ActivityScreen() {
   const [integrity, setIntegrity] = useState<SessionIntegrity | null>(null);
   const [liveAlerts, setLiveAlerts] = useState<CheatAlert[]>([]);
   const [savedFp, setSavedFp] = useState<number | null>(null);
+  const [recenterKey, setRecenterKey] = useState(0);
+  const [confirmFinish, setConfirmFinish] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
