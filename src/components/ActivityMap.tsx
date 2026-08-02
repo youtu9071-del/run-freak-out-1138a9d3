@@ -129,5 +129,17 @@ export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 
     map.setView(last, map.getZoom() < 14 ? 16 : map.getZoom(), { animate: true });
   }, [gpsPoints]);
 
+  // Manual recenter
+  useEffect(() => {
+    if (!recenterKey) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const last = gpsPoints[gpsPoints.length - 1];
+    const target = last ? [last.lat, last.lng] : initialPosition ? [initialPosition.lat, initialPosition.lng] : null;
+    if (!target) return;
+    map.setView(target as [number, number], 17, { animate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recenterKey]);
+
   return <div ref={containerRef} className="w-full h-full z-0" style={{ background: "hsl(var(--muted))" }} />;
 }
