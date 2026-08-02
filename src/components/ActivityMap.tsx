@@ -12,9 +12,11 @@ interface GpsPoint {
 interface ActivityMapProps {
   gpsPoints: GpsPoint[];
   initialPosition?: { lat: number; lng: number } | null;
+  /** Increment this value to recenter the map on the current position */
+  recenterKey?: number;
 }
 
-export default function ActivityMap({ gpsPoints, initialPosition }: ActivityMapProps) {
+export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 0 }: ActivityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
