@@ -336,6 +336,7 @@ export default function ActivityScreen() {
 
   const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
   const calories = calculateCalories(distance);
+  const paceSec = distance > 0.01 ? seconds / distance : 0;
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -346,6 +347,13 @@ export default function ActivityScreen() {
       : `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
   };
 
+  const formatPace = () => {
+    if (!paceSec || !isFinite(paceSec)) return "--:--";
+    const m = Math.floor(paceSec / 60);
+    const s = Math.round(paceSec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
   const integrityIcon = () => {
     if (!integrity) return null;
     if (integrity.status === "clean") return <Shield className="w-5 h-5 text-primary" />;
@@ -353,170 +361,346 @@ export default function ActivityScreen() {
     return <ShieldX className="w-5 h-5 text-destructive" />;
   };
 
-  return (
-    <div className="min-h-screen pb-24 flex flex-col max-w-lg mx-auto">
-      {/* Map area with Leaflet */}
-      <div className="relative h-[45vh] overflow-hidden">
-        <Suspense fallback={<div className="w-full h-full bg-muted animate-pulse" />}>
-          <ActivityMap gpsPoints={gpsPoints} initialPosition={initialPos} />
-        </Suspense>
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent z-10" />
+  const MiniStat = ({
+    icon: Icon,
+    label,
+    value,
+    unit,
+    tone = "default",
+    delay = 0,
+  }: { icon: typeof Timer; label: string; value: string; unit?: string; tone?: "default" | "primary" | "accent"; delay?: number }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className="rounded-2xl bg-foreground/[0.03] border border-foreground/[0.06] px-3 py-2.5"
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className={`w-3.5 h-3.5 ${tone === "primary" ? "text-primary" : tone === "accent" ? "text-accent" : "text-muted-foreground"}`} />
+        <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-1">
+        <motion.span
+          key={value}
+          initial={{ opacity: 0.55, y: 2 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="font-display font-black text-lg leading-none text-foreground tabular-nums"
+        >
+          {value}
+        </motion.span>
+        {unit && <span className="text-[10px] text-muted-foreground font-medium">{unit}</span>}
+      </div>
+    </motion.div>
+  );
 
-        {/* GPS Status */}
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold glass ${
-            gpsStatus === "active" ? "text-primary" :
-            gpsStatus === "denied" ? "text-destructive" :
-            "text-muted-foreground"
-          }`}>
+  // ─────────────── Écran de fin de course ───────────────
+  if (state === "finished") {
+    const blocked = integrity?.isBlocked;
+    return (
+      <div className="min-h-[100dvh] max-w-lg mx-auto px-5 pt-[calc(env(safe-area-inset-top)+2rem)] pb-[calc(env(safe-area-inset-bottom)+7rem)] flex flex-col">
+        <div className="absolute inset-0 -z-10 gradient-hero pointer-events-none" />
+
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }} className="text-center">
+          <div className={`relative w-24 h-24 mx-auto rounded-full flex items-center justify-center ${blocked ? "bg-destructive/15" : "gradient-primary neon-glow-strong"}`}>
+            {blocked ? <ShieldX className="w-10 h-10 text-destructive" /> : <Trophy className="w-10 h-10 text-primary-foreground" />}
+            {!blocked && <span className="pulse-ring absolute inset-0 rounded-full" />}
+          </div>
+          <p className="mt-5 text-[11px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
+            {blocked ? "Session rejetée" : "Course terminée"}
+          </p>
+          <h1 className={`font-display font-black text-3xl mt-1 ${blocked ? "text-destructive" : "text-gradient-primary"}`}>
+            {blocked ? "AUCUN POINT" : "BEAU TRAVAIL !"}
+          </h1>
+        </motion.div>
+
+        {/* Distance héro */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-8 text-center">
+          <p className="font-display font-black text-[4.5rem] leading-none tracking-tight text-foreground neon-text tabular-nums">
+            {distance.toFixed(2)}
+          </p>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mt-2">kilomètres</p>
+        </motion.div>
+
+        {/* Récap */}
+        <div className="grid grid-cols-3 gap-2.5 mt-8">
+          <MiniStat icon={Timer} label="Durée" value={formatTime(seconds)} delay={0.25} />
+          <MiniStat icon={Gauge} label="Allure" value={formatPace()} unit="/km" tone="primary" delay={0.3} />
+          <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(1)} unit="km/h" tone="primary" delay={0.35} />
+          <MiniStat icon={Footprints} label="Pas" value={String(steps)} tone="accent" delay={0.4} />
+          <MiniStat icon={Flame} label="Calories" value={String(calories)} unit="kcal" tone="accent" delay={0.45} />
+          <MiniStat icon={Route} label="Points GPS" value={String(gpsPoints.length)} delay={0.5} />
+        </div>
+
+        {/* FP */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.55, ease: [0.34, 1.56, 0.64, 1] }}
+          className={`mt-5 rounded-3xl p-5 text-center border ${blocked ? "bg-destructive/10 border-destructive/30" : "bg-primary/10 border-primary/30 neon-glow"}`}
+        >
+          <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground font-semibold">Freak Points gagnés</p>
+          <p className={`font-display font-black text-4xl mt-1 ${blocked ? "text-destructive" : "text-primary"}`}>
+            {blocked ? "0" : `+${(savedFp ?? 0).toFixed(1)}`}
+          </p>
+          {integrity && (
+            <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              {integrityIcon()}
+              <span>
+                {integrity.status === "clean" ? "Session vérifiée" : integrity.status === "suspect" ? "Session suspecte" : "Session invalidée"}
+              </span>
+            </div>
+          )}
+        </motion.div>
+
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => navigate("/")}
+          className="mt-6 w-full rounded-2xl gradient-primary py-4 font-display font-black tracking-wide text-primary-foreground neon-glow"
+        >
+          RETOUR À L'ACCUEIL
+        </motion.button>
+      </div>
+    );
+  }
+
+  // ─────────────── Écran de course ───────────────
+  return (
+    <div className="h-[100dvh] max-w-lg mx-auto flex flex-col overflow-hidden">
+      {/* Carte GPS — élément principal */}
+      <div className="relative flex-1 min-h-[34vh] overflow-hidden">
+        <Suspense fallback={<div className="w-full h-full bg-muted animate-pulse" />}>
+          <ActivityMap gpsPoints={gpsPoints} initialPosition={initialPos} recenterKey={recenterKey} />
+        </Suspense>
+
+        {/* Dégradés d'intégration */}
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-background/80 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
+
+        {/* Barre supérieure */}
+        <div className="absolute top-[calc(env(safe-area-inset-top)+0.75rem)] inset-x-3 z-20 flex items-center gap-2">
+          <button
+            onClick={() => navigate("/")}
+            className="w-10 h-10 rounded-full glass-strong flex items-center justify-center shrink-0"
+            aria-label="Retour"
+          >
+            <ChevronLeft className="w-5 h-5 text-foreground" />
+          </button>
+
+          <AnimatePresence>
+            {state === "running" && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-strong text-[10px] font-bold uppercase tracking-[0.15em] text-primary"
+              >
+                <motion.span
+                  animate={{ opacity: [1, 0.25, 1] }}
+                  transition={{ duration: 1.4, repeat: Infinity }}
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                />
+                Course en cours
+              </motion.div>
+            )}
+            {state === "paused" && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-strong text-[10px] font-bold uppercase tracking-[0.15em] text-accent"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                En pause
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div
+            className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold glass-strong shrink-0 ${
+              gpsStatus === "active" ? "text-primary" : gpsStatus === "denied" ? "text-destructive" : "text-muted-foreground"
+            }`}
+          >
             <MapPin className="w-3.5 h-3.5" />
-            {gpsStatus === "active" ? "GPS actif" :
-             gpsStatus === "denied" ? "GPS refusé" :
-             gpsStatus === "unavailable" ? "GPS indisponible" :
-             "En attente"}
+            {gpsStatus === "active" ? "GPS" : gpsStatus === "denied" ? "Refusé" : gpsStatus === "unavailable" ? "Indispo." : "Recherche"}
           </div>
         </div>
 
-        {/* Steps badge */}
-        {(state === "running" || state === "paused") && (
-          <div className="absolute top-4 left-14 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold glass text-accent">
-            <Footprints className="w-3.5 h-3.5" />
-            <span className="font-display">{steps}</span>
-            <span className="text-muted-foreground">pas</span>
-          </div>
-        )}
-
-        <button
-          onClick={() => navigate("/")}
-          className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full glass flex items-center justify-center"
+        {/* Recentrer */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setRecenterKey((k) => k + 1)}
+          className="absolute right-3 bottom-8 z-20 w-11 h-11 rounded-full glass-strong flex items-center justify-center text-primary shadow-elevation"
+          aria-label="Recentrer la carte"
         >
-          <ChevronLeft className="w-5 h-5 text-foreground" />
-        </button>
+          <Crosshair className="w-5 h-5" />
+        </motion.button>
       </div>
 
-      {/* Live cheat alerts */}
+      {/* Alertes anti-triche */}
       <AnimatePresence>
         {liveAlerts.length > 0 && state === "running" && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-4 overflow-hidden">
-            <div className={`rounded-xl p-3 mt-2 flex items-center gap-3 border ${
-              liveAlerts[liveAlerts.length - 1].level === "fraud"
-                ? "bg-destructive/10 border-destructive/30"
-                : "bg-accent/10 border-accent/30"
-            }`}>
-              {liveAlerts[liveAlerts.length - 1].level === "fraud"
-                ? <ShieldX className="w-5 h-5 text-destructive shrink-0" />
-                : <ShieldAlert className="w-5 h-5 text-accent shrink-0" />
-              }
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-4 overflow-hidden relative z-20">
+            <div
+              className={`rounded-2xl p-3 flex items-center gap-3 border ${
+                liveAlerts[liveAlerts.length - 1].level === "fraud" ? "bg-destructive/10 border-destructive/30" : "bg-accent/10 border-accent/30"
+              }`}
+            >
+              {liveAlerts[liveAlerts.length - 1].level === "fraud" ? (
+                <ShieldX className="w-5 h-5 text-destructive shrink-0" />
+              ) : (
+                <ShieldAlert className="w-5 h-5 text-accent shrink-0" />
+              )}
               <p className="text-xs font-medium text-foreground">{liveAlerts[liveAlerts.length - 1].reason}</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Stats */}
-      <div className="flex-1 px-4 -mt-8 relative z-10">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-card border border-border p-6 mb-4">
-          <div className="text-center mb-6">
-            <p className="text-sm text-muted-foreground mb-1">Distance</p>
-            <p className="font-display font-black text-5xl text-foreground neon-text">{distance.toFixed(2)}</p>
-            <p className="text-sm text-muted-foreground">km</p>
+      {/* Panneau statistiques + contrôles */}
+      <div className="relative z-20 -mt-6 px-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+          className="glass-strong rounded-[28px] px-4 pt-5 pb-4 shadow-premium"
+        >
+          {/* Distance — statistique principale */}
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">Distance</p>
+            <div className="flex items-end justify-center gap-2 mt-1">
+              <motion.span
+                key={distance.toFixed(2)}
+                initial={{ opacity: 0.6, scale: 0.99 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.25 }}
+                className="font-display font-black text-[3.75rem] leading-[0.9] tracking-tight text-foreground neon-text tabular-nums"
+              >
+                {distance.toFixed(2)}
+              </motion.span>
+              <span className="font-display font-bold text-base text-muted-foreground pb-2">km</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
-            <div className="text-center">
-              <Timer className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-              <p className="font-display font-bold text-lg">{formatTime(seconds)}</p>
-              <p className="text-[10px] text-muted-foreground">Durée</p>
-            </div>
-            <div className="text-center">
-              <Zap className="w-4 h-4 text-primary mx-auto mb-1" />
-              <p className="font-display font-bold text-lg">{speed.toFixed(1)}</p>
-              <p className="text-[10px] text-muted-foreground">km/h</p>
-            </div>
-            <div className="text-center">
-              <Footprints className="w-4 h-4 text-accent mx-auto mb-1" />
-              <p className="font-display font-bold text-lg">{steps}</p>
-              <p className="text-[10px] text-muted-foreground">pas</p>
-            </div>
-            <div className="text-center">
-              <Route className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-              <p className="font-display font-bold text-lg">{calories}</p>
-              <p className="text-[10px] text-muted-foreground">kcal</p>
-            </div>
+          {/* Grille de stats secondaires */}
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <MiniStat icon={Timer} label="Durée" value={formatTime(seconds)} delay={0.05} />
+            <MiniStat icon={Gauge} label="Allure" value={formatPace()} unit="/km" tone="primary" delay={0.1} />
+            <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(1)} unit="km/h" tone="primary" delay={0.15} />
+            <MiniStat icon={Footprints} label="Pas" value={String(steps)} tone="accent" delay={0.2} />
+            <MiniStat icon={Flame} label="Calories" value={String(calories)} unit="kcal" tone="accent" delay={0.25} />
+            <MiniStat icon={Route} label="Points GPS" value={String(gpsPoints.length)} delay={0.3} />
+          </div>
+
+          {/* Contrôles */}
+          <div className="mt-5 flex items-center justify-center gap-5 min-h-[104px]">
+            <AnimatePresence mode="wait">
+              {state === "idle" && (
+                <motion.button
+                  key="start"
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.7, opacity: 0 }}
+                  transition={{ ease: [0.34, 1.56, 0.64, 1] }}
+                  whileTap={{ scale: 0.93 }}
+                  onClick={handleStart}
+                  className="relative w-[104px] h-[104px] rounded-full gradient-primary flex flex-col items-center justify-center neon-glow-strong"
+                >
+                  <span className="pulse-ring absolute inset-0 rounded-full" />
+                  <Play className="w-7 h-7 text-primary-foreground ml-1" />
+                  <span className="mt-1 font-display font-black text-[11px] tracking-[0.2em] text-primary-foreground">DÉMARRER</span>
+                </motion.button>
+              )}
+
+              {state === "running" && (
+                <motion.div key="running" className="flex items-center gap-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
+                  <motion.button
+                    whileTap={{ scale: 0.93 }}
+                    onClick={handlePause}
+                    className="w-[92px] h-[92px] rounded-full bg-foreground/[0.06] border border-foreground/10 flex flex-col items-center justify-center backdrop-blur-sm"
+                  >
+                    <Pause className="w-6 h-6 text-foreground" />
+                    <span className="mt-1 font-display font-black text-[10px] tracking-[0.18em] text-muted-foreground">PAUSE</span>
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.93 }}
+                    onClick={() => setConfirmFinish(true)}
+                    className="w-[72px] h-[72px] rounded-full bg-destructive/15 border border-destructive/40 flex flex-col items-center justify-center"
+                  >
+                    <Square className="w-5 h-5 text-destructive" />
+                    <span className="mt-1 font-display font-black text-[9px] tracking-[0.16em] text-destructive">FIN</span>
+                  </motion.button>
+                </motion.div>
+              )}
+
+              {state === "paused" && (
+                <motion.div key="paused" className="flex items-center gap-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
+                  <motion.button
+                    whileTap={{ scale: 0.93 }}
+                    onClick={handleResume}
+                    className="w-[104px] h-[104px] rounded-full gradient-primary flex flex-col items-center justify-center neon-glow"
+                  >
+                    <Play className="w-7 h-7 text-primary-foreground ml-1" />
+                    <span className="mt-1 font-display font-black text-[10px] tracking-[0.18em] text-primary-foreground">REPRENDRE</span>
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.93 }}
+                    onClick={() => setConfirmFinish(true)}
+                    className="w-[72px] h-[72px] rounded-full bg-destructive/15 border border-destructive/40 flex flex-col items-center justify-center"
+                  >
+                    <Square className="w-5 h-5 text-destructive" />
+                    <span className="mt-1 font-display font-black text-[9px] tracking-[0.16em] text-destructive">FIN</span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-center gap-4">
-          <AnimatePresence mode="wait">
-            {state === "idle" && (
-              <motion.button key="start" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} whileTap={{ scale: 0.9 }}
-                onClick={handleStart} className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center neon-glow-strong">
-                <Play className="w-8 h-8 text-primary-foreground ml-1" />
-              </motion.button>
-            )}
-            {state === "running" && (
-              <motion.div key="controls" className="flex items-center gap-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={handlePause} className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-                  <Pause className="w-6 h-6 text-foreground" />
-                </motion.button>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={handleFinish} className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center">
-                  <Square className="w-6 h-6 text-destructive-foreground" />
-                </motion.button>
-              </motion.div>
-            )}
-            {state === "paused" && (
-              <motion.div key="paused" className="flex items-center gap-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={handleResume} className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center neon-glow">
-                  <Play className="w-6 h-6 text-primary-foreground ml-0.5" />
-                </motion.button>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={handleFinish} className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center">
-                  <Square className="w-6 h-6 text-destructive-foreground" />
-                </motion.button>
-              </motion.div>
-            )}
-            {state === "finished" && (
-              <motion.div key="finished" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center w-full">
-                <p className="font-display font-black text-2xl text-primary neon-text mb-4">
-                  {integrity?.isBlocked ? "SESSION REJETÉE 🚫" : "COURSE TERMINÉE ! 🎉"}
-                </p>
-
-                <div className="grid grid-cols-2 gap-3 mb-5 text-left">
-                  <div className="rounded-xl bg-card border border-border p-3">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Distance</p>
-                    <p className="font-display font-black text-xl text-foreground">{distance.toFixed(2)} <span className="text-xs text-muted-foreground">km</span></p>
-                  </div>
-                  <div className="rounded-xl bg-card border border-border p-3">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Temps</p>
-                    <p className="font-display font-black text-xl text-foreground">{formatTime(seconds)}</p>
-                  </div>
-                  <div className="rounded-xl bg-card border border-border p-3">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pas</p>
-                    <p className="font-display font-black text-xl text-foreground">{steps}</p>
-                  </div>
-                  <div className="rounded-xl bg-card border border-border p-3">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Calories</p>
-                    <p className="font-display font-black text-xl text-foreground">{calories} <span className="text-xs text-muted-foreground">kcal</span></p>
-                  </div>
-                  <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 col-span-2 neon-glow">
-                    <p className="text-[10px] uppercase tracking-wide text-primary/80">FP gagnés</p>
-                    <p className="font-display font-black text-2xl text-primary">
-                      {integrity?.isBlocked ? "0" : `+${(savedFp ?? 0).toFixed(1)}`}
-                    </p>
-                  </div>
-                </div>
-
-                {integrity?.isBlocked && (
-                  <p className="text-sm text-destructive mb-4">Aucun point attribué</p>
-                )}
-                <button onClick={() => navigate("/")} className="rounded-xl gradient-primary px-8 py-3 font-display font-bold text-primary-foreground">
-                  RETOUR
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
+
+      {/* Confirmation avant de terminer */}
+      <AnimatePresence>
+        {confirmFinish && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            onClick={() => setConfirmFinish(false)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0, scale: 0.97 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 40, opacity: 0, scale: 0.97 }}
+              transition={{ ease: [0.34, 1.56, 0.64, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm glass-strong rounded-3xl p-6 shadow-premium mb-[calc(env(safe-area-inset-bottom)+1rem)] sm:mb-0"
+            >
+              <h3 className="font-display font-black text-xl text-foreground text-center">Terminer la course ?</h3>
+              <p className="text-sm text-muted-foreground text-center mt-2">
+                {distance.toFixed(2)} km en {formatTime(seconds)}. Cette action est définitive.
+              </p>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setConfirmFinish(false)}
+                  className="flex-1 rounded-2xl bg-foreground/[0.06] border border-foreground/10 py-3 font-display font-bold text-foreground"
+                >
+                  Continuer
+                </button>
+                <button
+                  onClick={() => { setConfirmFinish(false); handleFinish(); }}
+                  className="flex-1 rounded-2xl bg-destructive py-3 font-display font-bold text-destructive-foreground"
+                >
+                  Terminer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
