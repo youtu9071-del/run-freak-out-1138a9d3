@@ -270,7 +270,13 @@ export default function ActivityScreen() {
         ...result.alerts,
         { level: "fraud", reason: "Aucun déplacement détecté — FP non attribués", timestamp: Date.now() },
       ];
+    } else {
+      // Course validée par défaut dès qu'un déplacement réel est détecté
+      result.isBlocked = false;
+      result.status = "clean";
+      result.alerts = [];
     }
+
     setIntegrity(result);
 
     const fp = calculateFP(distance, steps);
