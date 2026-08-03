@@ -123,19 +123,34 @@ export default function ActivityScreen() {
           accuracy: pos.coords.accuracy,
         };
 
-        if (pos.coords.accuracy > 50) return;
+        // Rejeter uniquement les points vraiment imprécis
+        if (pos.coords.accuracy > 60) return;
 
         if (lastPointRef.current) {
           const d = haversineDistance(lastPointRef.current, point);
-          if (d > 0.003 && d < 0.5) {
+          const dt = (point.timestamp - lastPointRef.current.timestamp) / 1000;
+          const speedKmh = dt > 0 ? d / (dt / 3600) : 0;
+
+          // Seuil de bruit adaptatif : ~1/3 de la précision GPS (min 1,5 m)
+          const noise = Math.max(0.0015, (pos.coords.accuracy / 1000) / 3);
+
+          if (d >= noise && speedKmh < 60) {
+            // On cumule et on avance l'ancre
             setDistance(prev => prev + d);
+            const alert = analyzeGpsJump(lastPointRef.current, point);
+            if (alert) setLiveAlerts(prev => [...prev.slice(-4), alert]);
+            lastPointRef.current = point;
+          } else if (d >= 0.5) {
+            // Grand saut (retour d'arrière-plan) : on recale l'ancre sans compter
+            lastPointRef.current = point;
           }
-          const alert = analyzeGpsJump(lastPointRef.current, point);
-          if (alert) setLiveAlerts(prev => [...prev.slice(-4), alert]);
+          // sinon : bruit → on garde l'ancre pour cumuler le déplacement réel
+        } else {
+          lastPointRef.current = point;
         }
 
-        lastPointRef.current = point;
         setGpsPoints(prev => [...prev, point]);
+
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
