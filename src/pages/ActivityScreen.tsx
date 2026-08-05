@@ -431,10 +431,11 @@ export default function ActivityScreen() {
           <p className="mt-5 text-[11px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
             {blocked ? "Session rejetée" : "Course terminée"}
           </p>
-          <h1 className={`font-display font-black text-3xl mt-1 ${blocked ? "text-destructive" : "text-gradient-primary"}`}>
-            {blocked ? "AUCUN POINT" : "BEAU TRAVAIL !"}
+          <h1 className={`font-display font-black text-3xl mt-1 leading-tight ${blocked ? "text-destructive" : "text-gradient-primary"}`}>
+            {blocked ? "AUCUN POINT" : `Beau travail, @${profile?.username || "runner"} !`}
           </h1>
         </motion.div>
+
 
         {/* Distance héro */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-8 text-center">
