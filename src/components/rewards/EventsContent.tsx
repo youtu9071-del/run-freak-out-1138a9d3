@@ -37,7 +37,17 @@ export default function EventsContent() {
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, [user]);
+  useEffect(() => {
+    loadData();
+    if (!user) return;
+    const channel = supabase
+      .channel(`events-content-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_participants" }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const loadData = async () => {
     if (!user) return;
