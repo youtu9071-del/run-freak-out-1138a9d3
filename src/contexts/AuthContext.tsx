@@ -72,6 +72,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Synchronisation temps réel du profil (stats, FP, rang) sur tous les appareils
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`profile-sync-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
+        (payload) => setProfile(payload.new as Profile)
+      )
+      .subscribe();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchProfile(user.id);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [user]);
+
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);

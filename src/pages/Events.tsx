@@ -81,6 +81,18 @@ export default function Events() {
 
   const joinEvent = async (eventId: string) => {
     if (!user) return;
+    // Anti multi-appareils : une seule participation par compte, vérifiée en base
+    const { data: existing } = await supabase
+      .from("event_participants")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (existing) {
+      toast.error("Tu participes déjà à cet événement !");
+      loadData();
+      return;
+    }
     const { error } = await supabase.from("event_participants").insert({
       event_id: eventId,
       user_id: user.id,
@@ -88,6 +100,7 @@ export default function Events() {
     if (error) {
       if (error.code === "23505") toast.error("Tu participes déjà à cet événement !");
       else toast.error("Erreur lors de l'inscription");
+      loadData();
       return;
     }
     toast.success("Inscription réussie ! 🎉");

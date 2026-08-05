@@ -37,7 +37,17 @@ export default function EventsContent() {
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, [user]);
+  useEffect(() => {
+    loadData();
+    if (!user) return;
+    const channel = supabase
+      .channel(`events-content-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_participants" }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const loadData = async () => {
     if (!user) return;
@@ -60,10 +70,23 @@ export default function EventsContent() {
 
   const joinEvent = async (eventId: string) => {
     if (!user) return;
+    // Anti multi-appareils : on revérifie en base avant d'inscrire
+    const { data: existing } = await supabase
+      .from("event_participants")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (existing) {
+      toast.error("Tu participes déjà à cet événement !");
+      loadData();
+      return;
+    }
     const { error } = await supabase.from("event_participants").insert({ event_id: eventId, user_id: user.id });
     if (error) {
       if (error.code === "23505") toast.error("Tu participes déjà !");
       else toast.error("Erreur lors de l'inscription");
+      loadData();
       return;
     }
     toast.success("Inscription réussie ! 🎉");
