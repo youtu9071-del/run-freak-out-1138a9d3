@@ -106,7 +106,8 @@ export default function ActivityScreen() {
     );
   }, []);
 
-  // ─── GPS Tracking with moving dot ───
+  // ─── Moteur GPS haute précision ───
+  // Filtrage : précision, sauts, dérive à l'arrêt, lissage exponentiel, gating de vitesse.
   const startGps = useCallback(() => {
     if (!navigator.geolocation) {
       setGpsStatus("unavailable");
@@ -116,51 +117,74 @@ export default function ActivityScreen() {
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         setGpsStatus("active");
-        const point: GpsPoint = {
+        const acc = pos.coords.accuracy ?? 999;
+        setGpsAccuracy(acc);
+
+        const raw: GpsPoint = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           timestamp: pos.timestamp,
-          accuracy: pos.coords.accuracy,
+          accuracy: acc,
         };
 
-        // Rejeter uniquement les points vraiment imprécis
-        if (pos.coords.accuracy > 60) return;
+        // 1) Rejet des fixes de mauvaise qualité (perte de signal / triangulation réseau)
+        if (acc > 35) return;
 
-        if (lastPointRef.current) {
-          const d = haversineDistance(lastPointRef.current, point);
-          const dt = (point.timestamp - lastPointRef.current.timestamp) / 1000;
-          const speedKmh = dt > 0 ? d / (dt / 3600) : 0;
+        // 2) Lissage exponentiel pondéré par la précision (réduit la dérive)
+        const prevSmoothed = smoothedRef.current;
+        let point: GpsPoint = raw;
+        if (prevSmoothed) {
+          const alpha = Math.min(1, Math.max(0.35, 12 / acc)); // bon fix => on suit le GPS
+          point = {
+            lat: prevSmoothed.lat + alpha * (raw.lat - prevSmoothed.lat),
+            lng: prevSmoothed.lng + alpha * (raw.lng - prevSmoothed.lng),
+            timestamp: raw.timestamp,
+            accuracy: acc,
+          };
+        }
+        smoothedRef.current = point;
 
-          // Seuil de bruit adaptatif : ~1/3 de la précision GPS (min 1,5 m)
-          const noise = Math.max(0.0015, (pos.coords.accuracy / 1000) / 3);
-
-          if (d >= noise && speedKmh < 60) {
-            // On cumule et on avance l'ancre
-            setDistance(prev => prev + d);
-            const alert = analyzeGpsJump(lastPointRef.current, point);
-            if (alert) setLiveAlerts(prev => [...prev.slice(-4), alert]);
-            lastPointRef.current = point;
-          } else if (d >= 0.5) {
-            // Grand saut (retour d'arrière-plan) : on recale l'ancre sans compter
-            lastPointRef.current = point;
-          }
-          // sinon : bruit → on garde l'ancre pour cumuler le déplacement réel
-        } else {
+        const anchor = lastPointRef.current;
+        if (!anchor) {
           lastPointRef.current = point;
+          setGpsPoints((prev) => [...prev, point]);
+          return;
         }
 
-        setGpsPoints(prev => [...prev, point]);
+        const d = haversineDistance(anchor, point); // km
+        const dt = (point.timestamp - anchor.timestamp) / 1000; // s
+        const speedKmh = dt > 0 ? d / (dt / 3600) : 0;
 
+        // 3) Saut de position irréaliste (téléportation / retour d'arrière-plan) : on recale sans compter
+        if (speedKmh > 45 || (d > 0.25 && dt < 15)) {
+          lastPointRef.current = point;
+          setGpsPoints((prev) => [...prev, point]);
+          return;
+        }
+
+        // 4) Zone morte adaptative : à l'arrêt le GPS dérive, on n'accumule pas ce bruit.
+        //    Le seuil dépend de la précision courante (min 2 m, max 12 m).
+        const noiseKm = Math.min(0.012, Math.max(0.002, (acc * 0.6) / 1000));
+
+        if (d >= noiseKm) {
+          setDistance((prev) => prev + d);
+          const alert = analyzeGpsJump(anchor, point);
+          if (alert) setLiveAlerts((prev) => [...prev.slice(-4), alert]);
+          lastPointRef.current = point; // on avance l'ancre uniquement sur un déplacement validé
+          setGpsPoints((prev) => [...prev, point]);
+        }
+        // sinon : ancre conservée → les micro-déplacements réels finissent par franchir le seuil
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
         else setGpsStatus("unavailable");
       },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
     );
 
     watchIdRef.current = id;
   }, []);
+
 
   const stopGps = useCallback(() => {
     if (watchIdRef.current !== null) {
