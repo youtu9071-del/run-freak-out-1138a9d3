@@ -802,6 +802,7 @@ export type Database = {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_username_available: { Args: { p_username: string }; Returns: boolean }
       partner_scan_validate: {
         Args: { p_uid: string }
         Returns: {

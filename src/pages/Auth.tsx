@@ -25,19 +25,37 @@ export default function Auth() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
+        const cleanUsername = username.trim();
+        const { data: available, error: checkError } = await supabase.rpc(
+          "is_username_available" as any,
+          { p_username: cleanUsername }
+        );
+        if (checkError) throw checkError;
+        if (available === false) {
+          setError("Username déjà utilisé");
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { username } },
+          options: { data: { username: cleanUsername } },
         });
         if (error) throw error;
       }
     } catch (err: any) {
-      setError(err.message);
+      const msg = String(err?.message || "");
+      setError(
+        /USERNAME_TAKEN|profiles_username_lower_unique|duplicate key/i.test(msg)
+          ? "Username déjà utilisé"
+          : msg
+      );
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background">
