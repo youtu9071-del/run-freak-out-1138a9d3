@@ -357,7 +357,14 @@ export default function ActivityScreen() {
         gps_points: gpsPoints as any,
       });
 
-      // Update profile stats
+      // Progression automatique des événements auxquels l'utilisateur participe
+      if (!result.isBlocked && activity.distanceKm > 0) {
+        try {
+          await supabase.rpc("sync_event_progress" as any, { p_distance_km: activity.distanceKm });
+        } catch { /* ignore */ }
+      }
+
+      // Synchronisation des stats du profil (distance, activités, FP, pas)
       await supabase.rpc("update_profile_stats" as any, { p_user_id: user.id });
 
       // If this was a team-challenge run, submit the participation
@@ -378,6 +385,8 @@ export default function ActivityScreen() {
       } catch { /* ignore */ }
 
       await refreshProfile();
+      // Deuxième passe : garantit l'affichage du nouveau rang même si la réplication tarde
+      setTimeout(() => { refreshProfile(); }, 1500);
     }
   };
 
