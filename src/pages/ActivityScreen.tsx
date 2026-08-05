@@ -29,9 +29,11 @@ export default function ActivityScreen() {
   const [savedFp, setSavedFp] = useState<number | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
+  const smoothedRef = useRef<GpsPoint | null>(null);
   const restoredRef = useRef(false);
 
   // ─── Persistance de la course (reprise automatique après fermeture / notification) ───
