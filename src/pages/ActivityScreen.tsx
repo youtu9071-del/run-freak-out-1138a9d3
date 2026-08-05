@@ -16,7 +16,7 @@ type TrackingState = "idle" | "running" | "paused" | "finished";
 
 export default function ActivityScreen() {
   const navigate = useNavigate();
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [state, setState] = useState<TrackingState>("idle");
   const [seconds, setSeconds] = useState(0);
   const [distance, setDistance] = useState(0);
