@@ -351,9 +351,10 @@ export default function ActivityScreen() {
         }
       } catch { /* ignore */ }
 
-      refreshProfile();
+      await refreshProfile();
     }
   };
+
 
   const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
   const calories = calculateCalories(distance);
