@@ -866,6 +866,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      sync_event_progress: {
+        Args: { p_distance_km: number }
+        Returns: undefined
+      }
       update_profile_stats: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
