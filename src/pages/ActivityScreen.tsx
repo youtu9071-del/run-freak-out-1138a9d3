@@ -579,12 +579,40 @@ export default function ActivityScreen() {
 
           <div
             className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold glass-strong shrink-0 ${
-              gpsStatus === "active" ? "text-primary" : gpsStatus === "denied" ? "text-destructive" : "text-muted-foreground"
+              gpsStatus === "active"
+                ? gpsAccuracy !== null && gpsAccuracy > 20
+                  ? "text-accent"
+                  : "text-primary"
+                : gpsStatus === "denied"
+                ? "text-destructive"
+                : "text-muted-foreground"
             }`}
           >
             <MapPin className="w-3.5 h-3.5" />
-            {gpsStatus === "active" ? "GPS" : gpsStatus === "denied" ? "Refusé" : gpsStatus === "unavailable" ? "Indispo." : "Recherche"}
+            {gpsStatus === "active"
+              ? gpsAccuracy !== null
+                ? `GPS ±${Math.round(gpsAccuracy)} m`
+                : "GPS"
+              : gpsStatus === "denied"
+              ? "Refusé"
+              : gpsStatus === "unavailable"
+              ? "Indispo."
+              : "Recherche"}
+            {gpsStatus === "active" && (
+              <span className="flex items-end gap-[2px] ml-0.5">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={`w-[3px] rounded-full ${
+                      gpsAccuracy !== null && gpsAccuracy <= [35, 20, 10][i] ? "bg-current" : "bg-current/25"
+                    }`}
+                    style={{ height: 4 + i * 3 }}
+                  />
+                ))}
+              </span>
+            )}
           </div>
+
         </div>
 
         {/* Recentrer */}
