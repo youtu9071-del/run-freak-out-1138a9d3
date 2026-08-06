@@ -617,7 +617,7 @@ export default function Challenges() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => respondInvite(inv.id, true)}
+                        onClick={() => respondInvite(inv.id, true, inv.team_id)}
                         className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
                       >
                         <Check className="w-3 h-3" /> Accepter
