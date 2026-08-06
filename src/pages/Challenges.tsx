@@ -89,12 +89,9 @@ export default function Challenges() {
     }
   };
 
-  const respondInvite = async (inviteId: string, accept: boolean) => {
+  const respondInvite = async (inviteId: string, accept: boolean, teamId?: string) => {
     if (accept) {
-      const { error } = await supabase
-        .from("team_members")
-        .update({ status: "accepted" as any })
-        .eq("id", inviteId);
+      const { error } = await supabase.rpc("accept_team_invite" as any, { p_team_id: teamId });
       if (error) { toast.error("Erreur"); return; }
       toast.success("Tu as rejoint l'équipe ! 🔥");
     } else {
