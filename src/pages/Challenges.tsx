@@ -89,12 +89,9 @@ export default function Challenges() {
     }
   };
 
-  const respondInvite = async (inviteId: string, accept: boolean) => {
+  const respondInvite = async (inviteId: string, accept: boolean, teamId?: string) => {
     if (accept) {
-      const { error } = await supabase
-        .from("team_members")
-        .update({ status: "accepted" as any })
-        .eq("id", inviteId);
+      const { error } = await supabase.rpc("accept_team_invite" as any, { p_team_id: teamId });
       if (error) { toast.error("Erreur"); return; }
       toast.success("Tu as rejoint l'équipe ! 🔥");
     } else {
@@ -620,7 +617,7 @@ export default function Challenges() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => respondInvite(inv.id, true)}
+                        onClick={() => respondInvite(inv.id, true, inv.team_id)}
                         className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
                       >
                         <Check className="w-3 h-3" /> Accepter

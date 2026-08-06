@@ -763,6 +763,7 @@ export type Database = {
         Args: { p_challenge_id: string; p_team_id: string }
         Returns: undefined
       }
+      accept_team_invite: { Args: { p_team_id: string }; Returns: undefined }
       claim_partner_invite: { Args: { p_token: string }; Returns: boolean }
       cleanup_expired_events: { Args: never; Returns: undefined }
       create_duel_invite: {
@@ -775,6 +776,7 @@ export type Database = {
         Returns: string
       }
       duel_level_stake: { Args: { p_level: string }; Returns: number }
+      expire_duel_invites: { Args: never; Returns: undefined }
       expire_old_challenges: { Args: never; Returns: undefined }
       expire_old_qrcodes: { Args: never; Returns: undefined }
       expire_team_challenges: { Args: never; Returns: undefined }

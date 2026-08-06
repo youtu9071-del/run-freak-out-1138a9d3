@@ -70,9 +70,7 @@ export default function ChallengeInvites() {
 
       const expired = data.filter((inv) => new Date(inv.expires_at) <= now);
       if (expired.length > 0) {
-        for (const inv of expired) {
-          await supabase.from("challenge_invites").update({ status: "expired" as any }).eq("id", inv.id);
-        }
+        await supabase.rpc("expire_duel_invites" as any);
       }
 
       const challengerIds = valid.map((i) => i.challenger_id);

@@ -364,8 +364,8 @@ export default function ActivityScreen() {
         } catch { /* ignore */ }
       }
 
-      // Synchronisation des stats du profil (distance, activités, FP, pas)
-      await supabase.rpc("update_profile_stats" as any, { p_user_id: user.id });
+      // Les stats du profil sont synchronisées automatiquement par un trigger en base
+
 
       // If this was a team-challenge run, submit the participation
       try {
