@@ -14,15 +14,18 @@ interface ActivityMapProps {
   initialPosition?: { lat: number; lng: number } | null;
   /** Increment this value to recenter the map on the current position */
   recenterKey?: number;
+  /** Photo de profil de l'utilisateur, utilisée comme marqueur si disponible */
+  avatarUrl?: string | null;
 }
 
-export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 0 }: ActivityMapProps) {
+export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 0, avatarUrl }: ActivityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
-  const markerRef = useRef<L.CircleMarker | null>(null);
+  const markerRef = useRef<L.CircleMarker | L.Marker | null>(null);
   const pulseRef = useRef<L.CircleMarker | null>(null);
   const initialCenteredRef = useRef(false);
+
 
   // Initialize the map once
   useEffect(() => {
