@@ -294,6 +294,16 @@ export default function Profile() {
         </motion.button>
       )}
 
+      {/* Support */}
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={() => navigate("/support")}
+        className="w-full rounded-2xl bg-card/70 backdrop-blur-md border border-border p-3.5 text-center mb-3 flex items-center justify-center gap-2"
+      >
+        <LifeBuoy className="w-4 h-4 text-primary" />
+        <p className="font-display font-bold text-xs text-foreground uppercase tracking-widest">Support</p>
+      </motion.button>
+
 
       {/* Logout */}
       <motion.button
