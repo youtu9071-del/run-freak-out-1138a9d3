@@ -69,7 +69,9 @@ function AppRoutes() {
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/levels" element={<Levels />} />
         <Route path="/rewards" element={<Rewards />} />
+        <Route path="/support" element={<Support />} />
         <Route path="/social" element={<Social />} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
