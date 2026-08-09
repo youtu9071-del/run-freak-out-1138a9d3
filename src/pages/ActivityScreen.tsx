@@ -531,7 +531,7 @@ export default function ActivityScreen() {
       {/* Carte GPS — élément principal */}
       <div className="relative flex-1 min-h-[34vh] overflow-hidden">
         <Suspense fallback={<div className="w-full h-full bg-muted animate-pulse" />}>
-          <ActivityMap gpsPoints={gpsPoints} initialPosition={initialPos} recenterKey={recenterKey} />
+          <ActivityMap gpsPoints={gpsPoints} initialPosition={initialPos} recenterKey={recenterKey} avatarUrl={profile?.avatar_url ?? null} />
         </Suspense>
 
         {/* Dégradés d'intégration */}
