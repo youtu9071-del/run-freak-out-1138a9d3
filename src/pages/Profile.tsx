@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine } from "lucide-react";
+import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel, getLevelProgress, LEVELS } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
