@@ -115,9 +115,19 @@ export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 
       }).addTo(map);
     }
 
-    // Solid green dot (current position)
+    // Marqueur : photo de profil si disponible, sinon point vert
     if (markerRef.current) {
       markerRef.current.setLatLng(last);
+    } else if (avatarUrl) {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:44px;height:44px;border-radius:9999px;overflow:hidden;border:3px solid hsl(142,71%,45%);box-shadow:0 0 0 3px rgba(255,255,255,0.9),0 4px 12px rgba(0,0,0,0.35);background:#000">
+          <img src="${avatarUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block" />
+        </div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      });
+      markerRef.current = L.marker(last, { icon, interactive: false }).addTo(map);
     } else {
       markerRef.current = L.circleMarker(last, {
         radius: 8,
@@ -130,7 +140,8 @@ export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 
 
     // Auto-center on user
     map.setView(last, map.getZoom() < 14 ? 16 : map.getZoom(), { animate: true });
-  }, [gpsPoints]);
+  }, [gpsPoints, avatarUrl]);
+
 
   // Manual recenter
   useEffect(() => {
