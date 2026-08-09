@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.notify_support_reply() FROM PUBLIC, anon, authenticated;
