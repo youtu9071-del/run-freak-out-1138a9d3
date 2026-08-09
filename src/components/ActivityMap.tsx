@@ -14,15 +14,18 @@ interface ActivityMapProps {
   initialPosition?: { lat: number; lng: number } | null;
   /** Increment this value to recenter the map on the current position */
   recenterKey?: number;
+  /** Photo de profil de l'utilisateur, utilisée comme marqueur si disponible */
+  avatarUrl?: string | null;
 }
 
-export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 0 }: ActivityMapProps) {
+export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 0, avatarUrl }: ActivityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
-  const markerRef = useRef<L.CircleMarker | null>(null);
+  const markerRef = useRef<L.CircleMarker | L.Marker | null>(null);
   const pulseRef = useRef<L.CircleMarker | null>(null);
   const initialCenteredRef = useRef(false);
+
 
   // Initialize the map once
   useEffect(() => {
@@ -112,9 +115,19 @@ export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 
       }).addTo(map);
     }
 
-    // Solid green dot (current position)
+    // Marqueur : photo de profil si disponible, sinon point vert
     if (markerRef.current) {
       markerRef.current.setLatLng(last);
+    } else if (avatarUrl) {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:44px;height:44px;border-radius:9999px;overflow:hidden;border:3px solid hsl(142,71%,45%);box-shadow:0 0 0 3px rgba(255,255,255,0.9),0 4px 12px rgba(0,0,0,0.35);background:#000">
+          <img src="${avatarUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block" />
+        </div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      });
+      markerRef.current = L.marker(last, { icon, interactive: false }).addTo(map);
     } else {
       markerRef.current = L.circleMarker(last, {
         radius: 8,
@@ -127,7 +140,8 @@ export default function ActivityMap({ gpsPoints, initialPosition, recenterKey = 
 
     // Auto-center on user
     map.setView(last, map.getZoom() < 14 ? 16 : map.getZoom(), { animate: true });
-  }, [gpsPoints]);
+  }, [gpsPoints, avatarUrl]);
+
 
   // Manual recenter
   useEffect(() => {

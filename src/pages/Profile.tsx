@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine } from "lucide-react";
+import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel, getLevelProgress, LEVELS } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
@@ -293,6 +293,16 @@ export default function Profile() {
           <p className="font-display font-bold text-xs text-primary uppercase tracking-widest">Panel Admin</p>
         </motion.button>
       )}
+
+      {/* Support */}
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={() => navigate("/support")}
+        className="w-full rounded-2xl bg-card/70 backdrop-blur-md border border-border p-3.5 text-center mb-3 flex items-center justify-center gap-2"
+      >
+        <LifeBuoy className="w-4 h-4 text-primary" />
+        <p className="font-display font-bold text-xs text-foreground uppercase tracking-widest">Support</p>
+      </motion.button>
 
 
       {/* Logout */}

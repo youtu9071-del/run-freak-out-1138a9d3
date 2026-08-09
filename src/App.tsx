@@ -22,7 +22,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import QRScan from "./pages/QRScan";
 import Partner from "./pages/Partner";
 import PartnerClaim from "./pages/PartnerClaim";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -67,7 +69,9 @@ function AppRoutes() {
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/levels" element={<Levels />} />
         <Route path="/rewards" element={<Rewards />} />
+        <Route path="/support" element={<Support />} />
         <Route path="/social" element={<Social />} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
