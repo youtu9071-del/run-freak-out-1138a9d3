@@ -22,7 +22,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import QRScan from "./pages/QRScan";
 import Partner from "./pages/Partner";
 import PartnerClaim from "./pages/PartnerClaim";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
