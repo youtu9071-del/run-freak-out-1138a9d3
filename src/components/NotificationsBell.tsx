@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Bell, Swords, Check, X } from "lucide-react";
+import { Bell, Swords, Check, X, LifeBuoy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -18,6 +19,7 @@ interface Notification {
 
 export default function NotificationsBell() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notification[]>([]);
 
@@ -103,10 +105,18 @@ export default function NotificationsBell() {
               <ul className="divide-y divide-border">
                 {notifs.map((n) => (
                   <li key={n.id} className={`p-3 flex gap-3 ${!n.read ? "bg-primary/5" : ""}`}>
-                    <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
-                      <Swords className="w-4 h-4 text-accent" />
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${n.type === "support_reply" ? "bg-primary/20" : "bg-accent/20"}`}>
+                      {n.type === "support_reply" ? <LifeBuoy className="w-4 h-4 text-primary" /> : <Swords className="w-4 h-4 text-accent" />}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => {
+                        if (n.type === "support_reply" && n.related_id) {
+                          setOpen(false);
+                          navigate(`/support?t=${n.related_id}`);
+                        }
+                      }}
+                    >
                       <p className="font-bold text-sm truncate">{n.title}</p>
                       {n.message && <p className="text-xs text-muted-foreground">{n.message}</p>}
                       <p className="text-[10px] text-muted-foreground mt-0.5">
