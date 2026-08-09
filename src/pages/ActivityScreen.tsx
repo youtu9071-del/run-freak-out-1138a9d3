@@ -577,41 +577,49 @@ export default function ActivityScreen() {
             )}
           </AnimatePresence>
 
-          <div
-            className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold glass-strong shrink-0 ${
-              gpsStatus === "active"
-                ? gpsAccuracy !== null && gpsAccuracy > 20
-                  ? "text-accent"
-                  : "text-primary"
-                : gpsStatus === "denied"
-                ? "text-destructive"
-                : "text-muted-foreground"
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            {gpsStatus === "active"
-              ? gpsAccuracy !== null
-                ? `GPS ±${Math.round(gpsAccuracy)} m`
-                : "GPS"
-              : gpsStatus === "denied"
-              ? "Refusé"
-              : gpsStatus === "unavailable"
-              ? "Indispo."
-              : "Recherche"}
-            {gpsStatus === "active" && (
-              <span className="flex items-end gap-[2px] ml-0.5">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className={`w-[3px] rounded-full ${
-                      gpsAccuracy !== null && gpsAccuracy <= [35, 20, 10][i] ? "bg-current" : "bg-current/25"
-                    }`}
-                    style={{ height: 4 + i * 3 }}
-                  />
-                ))}
-              </span>
-            )}
-          </div>
+          {(() => {
+            const level =
+              gpsAccuracy === null ? 0 : gpsAccuracy <= 8 ? 4 : gpsAccuracy <= 15 ? 3 : gpsAccuracy <= 30 ? 2 : 1;
+            const label = ["", "Faible", "Moyen", "Bon", "Excellent"][level];
+            const tone =
+              gpsStatus !== "active"
+                ? gpsStatus === "denied"
+                  ? "text-destructive"
+                  : "text-muted-foreground"
+                : level >= 3
+                ? "text-primary"
+                : level === 2
+                ? "text-accent"
+                : "text-destructive";
+            return (
+              <div
+                className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold glass-strong shrink-0 ${tone}`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                {gpsStatus === "active"
+                  ? label || "GPS"
+                  : gpsStatus === "denied"
+                  ? "Refusé"
+                  : gpsStatus === "unavailable"
+                  ? "Indispo."
+                  : "Recherche"}
+                {gpsStatus === "active" && (
+                  <span className="flex items-end gap-[2px] ml-0.5">
+                    {[1, 2, 3, 4].map((i) => (
+                      <motion.span
+                        key={i}
+                        animate={{ opacity: i <= level ? 1 : 0.25 }}
+                        transition={{ duration: 0.3 }}
+                        className="w-[3px] rounded-full bg-current"
+                        style={{ height: 3 + i * 2.5 }}
+                      />
+                    ))}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
 
         </div>
 
