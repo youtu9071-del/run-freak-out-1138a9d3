@@ -5,7 +5,7 @@ import { Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Calendar, ShoppingBag, Users, LogOut, QrCode, Swords, Handshake, Ticket,
-  LayoutDashboard, LifeBuoy, MessagesSquare, Settings, UserCog, Menu, X, Receipt,
+  LayoutDashboard, LifeBuoy, MessagesSquare, Settings, UserCog, Menu, X, Receipt, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminEvents from "./AdminEvents";
@@ -93,6 +93,14 @@ export default function AdminDashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const [active, setActive] = useState("overview");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("fo_admin_sidebar") === "1");
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      localStorage.setItem("fo_admin_sidebar", c ? "0" : "1");
+      return !c;
+    });
+  };
   const [counts, setCounts] = useState<{ support: number; tickets: number; orders: number }>({
     support: 0, tickets: 0, orders: 0,
   });
@@ -222,13 +230,17 @@ export default function AdminDashboard() {
             <motion.aside
               initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
               transition={{ type: "spring", damping: 26, stiffness: 260 }}
-              className="fixed left-0 top-0 bottom-0 w-72 bg-card border-r border-border z-50 overflow-y-auto lg:hidden"
+              drag="x"
+              dragConstraints={{ left: -300, right: 0 }}
+              dragElastic={0.08}
+              onDragEnd={(_, info) => { if (info.offset.x < -80) setMenuOpen(false); }}
+              className="fixed left-0 top-0 bottom-0 w-[85vw] max-w-xs bg-card border-r border-border z-50 overflow-y-auto lg:hidden"
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-border">
                 <p className="font-display font-black">Admin</p>
                 <button onClick={() => setMenuOpen(false)}><X className="w-5 h-5" /></button>
               </div>
-              {Nav}
+              {renderNav(false)}
               <button
                 onClick={signOut}
                 className="m-4 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-muted-foreground"
@@ -245,6 +257,13 @@ export default function AdminDashboard() {
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 md:px-8 py-4 flex items-center gap-3">
           <button onClick={() => setMenuOpen(true)} className="lg:hidden w-9 h-9 rounded-xl border border-border flex items-center justify-center">
             <Menu className="w-5 h-5" />
+          </button>
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? "Déplier le menu" : "Replier le menu"}
+            className="hidden lg:flex w-9 h-9 rounded-xl border border-border items-center justify-center hover:bg-muted/40 transition-colors"
+          >
+            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
           </button>
           <div className="min-w-0">
             <h1 className="font-display font-black text-lg md:text-2xl leading-tight truncate">{current.l}</h1>
