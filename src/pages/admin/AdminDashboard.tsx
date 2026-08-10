@@ -5,7 +5,7 @@ import { Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Calendar, ShoppingBag, Users, LogOut, QrCode, Swords, Handshake, Ticket,
-  LayoutDashboard, LifeBuoy, MessagesSquare, Settings, UserCog, Menu, X, Receipt,
+  LayoutDashboard, LifeBuoy, MessagesSquare, Settings, UserCog, Menu, X, Receipt, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminEvents from "./AdminEvents";
@@ -93,6 +93,14 @@ export default function AdminDashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const [active, setActive] = useState("overview");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("fo_admin_sidebar") === "1");
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      localStorage.setItem("fo_admin_sidebar", c ? "0" : "1");
+      return !c;
+    });
+  };
   const [counts, setCounts] = useState<{ support: number; tickets: number; orders: number }>({
     support: 0, tickets: 0, orders: 0,
   });
@@ -124,11 +132,22 @@ export default function AdminDashboard() {
   }
   if (!user || !isAdmin) return <Navigate to="/" replace />;
 
-  const Nav = (
-    <nav className="flex flex-col gap-6 p-4">
+  const renderNav = (mini: boolean) => (
+    <nav className="flex flex-col gap-5 p-3">
       {GROUPS.map((g) => (
         <div key={g.title}>
-          <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{g.title}</p>
+          <AnimatePresence initial={false}>
+            {!mini && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground overflow-hidden"
+              >
+                {g.title}
+              </motion.p>
+            )}
+          </AnimatePresence>
           <div className="space-y-1">
             {g.pages.map((p) => {
               const on = p.v === active;
@@ -136,19 +155,29 @@ export default function AdminDashboard() {
               return (
                 <button
                   key={p.v}
+                  title={p.l}
                   onClick={() => { setActive(p.v); setMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  className={`w-full flex items-center gap-3 ${mini ? "justify-center px-0" : "px-3"} py-2.5 rounded-xl text-sm transition-all duration-200 ${
                     on
                       ? "bg-primary/15 text-primary font-semibold border border-primary/30"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent"
                   }`}
                 >
-                  <p.i className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{p.l}</span>
-                  {badge > 0 && (
-                    <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center">
-                      {badge}
-                    </span>
+                  <span className="relative shrink-0">
+                    <p.i className="w-4 h-4" />
+                    {mini && badge > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-2 h-2 rounded-full bg-accent" />
+                    )}
+                  </span>
+                  {!mini && (
+                    <>
+                      <span className="truncate">{p.l}</span>
+                      {badge > 0 && (
+                        <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center">
+                          {badge}
+                        </span>
+                      )}
+                    </>
                   )}
                 </button>
               );
@@ -162,24 +191,32 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar desktop */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border sticky top-0 h-screen overflow-y-auto">
-        <div className="flex items-center gap-2 px-4 py-4 border-b border-border">
-          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
+      <motion.aside
+        initial={false}
+        animate={{ width: collapsed ? 76 : 256 }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="hidden lg:flex shrink-0 flex-col border-r border-border sticky top-0 h-screen overflow-y-auto overflow-x-hidden"
+      >
+        <div className={`flex items-center gap-2 py-4 border-b border-border ${collapsed ? "justify-center px-2" : "px-4"}`}>
+          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0">
             <Shield className="w-5 h-5 text-primary-foreground" />
           </div>
-          <div>
-            <p className="font-display font-black leading-tight">Admin</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">FREAK OUT Control</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="font-display font-black leading-tight truncate">Admin</p>
+              <p className="text-[10px] text-muted-foreground leading-tight truncate">FREAK OUT Control</p>
+            </div>
+          )}
         </div>
-        {Nav}
+        {renderNav(collapsed)}
         <button
           onClick={signOut}
-          className="mt-auto m-4 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-destructive"
+          title="Déconnexion"
+          className={`mt-auto m-3 flex items-center gap-2 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-destructive transition-colors ${collapsed ? "justify-center" : "px-3"}`}
         >
-          <LogOut className="w-4 h-4" /> Déconnexion
+          <LogOut className="w-4 h-4 shrink-0" /> {!collapsed && "Déconnexion"}
         </button>
-      </aside>
+      </motion.aside>
 
       {/* Drawer mobile */}
       <AnimatePresence>
@@ -193,13 +230,17 @@ export default function AdminDashboard() {
             <motion.aside
               initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
               transition={{ type: "spring", damping: 26, stiffness: 260 }}
-              className="fixed left-0 top-0 bottom-0 w-72 bg-card border-r border-border z-50 overflow-y-auto lg:hidden"
+              drag="x"
+              dragConstraints={{ left: -300, right: 0 }}
+              dragElastic={0.08}
+              onDragEnd={(_, info) => { if (info.offset.x < -80) setMenuOpen(false); }}
+              className="fixed left-0 top-0 bottom-0 w-[85vw] max-w-xs bg-card border-r border-border z-50 overflow-y-auto lg:hidden"
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-border">
                 <p className="font-display font-black">Admin</p>
                 <button onClick={() => setMenuOpen(false)}><X className="w-5 h-5" /></button>
               </div>
-              {Nav}
+              {renderNav(false)}
               <button
                 onClick={signOut}
                 className="m-4 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-muted-foreground"
@@ -216,6 +257,13 @@ export default function AdminDashboard() {
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 md:px-8 py-4 flex items-center gap-3">
           <button onClick={() => setMenuOpen(true)} className="lg:hidden w-9 h-9 rounded-xl border border-border flex items-center justify-center">
             <Menu className="w-5 h-5" />
+          </button>
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? "Déplier le menu" : "Replier le menu"}
+            className="hidden lg:flex w-9 h-9 rounded-xl border border-border items-center justify-center hover:bg-muted/40 transition-colors"
+          >
+            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
           </button>
           <div className="min-w-0">
             <h1 className="font-display font-black text-lg md:text-2xl leading-tight truncate">{current.l}</h1>
