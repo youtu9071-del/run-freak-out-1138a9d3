@@ -124,11 +124,22 @@ export default function AdminDashboard() {
   }
   if (!user || !isAdmin) return <Navigate to="/" replace />;
 
-  const Nav = (
-    <nav className="flex flex-col gap-6 p-4">
+  const renderNav = (mini: boolean) => (
+    <nav className="flex flex-col gap-5 p-3">
       {GROUPS.map((g) => (
         <div key={g.title}>
-          <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{g.title}</p>
+          <AnimatePresence initial={false}>
+            {!mini && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground overflow-hidden"
+              >
+                {g.title}
+              </motion.p>
+            )}
+          </AnimatePresence>
           <div className="space-y-1">
             {g.pages.map((p) => {
               const on = p.v === active;
@@ -136,19 +147,29 @@ export default function AdminDashboard() {
               return (
                 <button
                   key={p.v}
+                  title={p.l}
                   onClick={() => { setActive(p.v); setMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  className={`w-full flex items-center gap-3 ${mini ? "justify-center px-0" : "px-3"} py-2.5 rounded-xl text-sm transition-all duration-200 ${
                     on
                       ? "bg-primary/15 text-primary font-semibold border border-primary/30"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent"
                   }`}
                 >
-                  <p.i className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{p.l}</span>
-                  {badge > 0 && (
-                    <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center">
-                      {badge}
-                    </span>
+                  <span className="relative shrink-0">
+                    <p.i className="w-4 h-4" />
+                    {mini && badge > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-2 h-2 rounded-full bg-accent" />
+                    )}
+                  </span>
+                  {!mini && (
+                    <>
+                      <span className="truncate">{p.l}</span>
+                      {badge > 0 && (
+                        <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center">
+                          {badge}
+                        </span>
+                      )}
+                    </>
                   )}
                 </button>
               );
@@ -162,24 +183,32 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar desktop */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border sticky top-0 h-screen overflow-y-auto">
-        <div className="flex items-center gap-2 px-4 py-4 border-b border-border">
-          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
+      <motion.aside
+        initial={false}
+        animate={{ width: collapsed ? 76 : 256 }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="hidden lg:flex shrink-0 flex-col border-r border-border sticky top-0 h-screen overflow-y-auto overflow-x-hidden"
+      >
+        <div className={`flex items-center gap-2 py-4 border-b border-border ${collapsed ? "justify-center px-2" : "px-4"}`}>
+          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0">
             <Shield className="w-5 h-5 text-primary-foreground" />
           </div>
-          <div>
-            <p className="font-display font-black leading-tight">Admin</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">FREAK OUT Control</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="font-display font-black leading-tight truncate">Admin</p>
+              <p className="text-[10px] text-muted-foreground leading-tight truncate">FREAK OUT Control</p>
+            </div>
+          )}
         </div>
-        {Nav}
+        {renderNav(collapsed)}
         <button
           onClick={signOut}
-          className="mt-auto m-4 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-destructive"
+          title="Déconnexion"
+          className={`mt-auto m-3 flex items-center gap-2 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-destructive transition-colors ${collapsed ? "justify-center" : "px-3"}`}
         >
-          <LogOut className="w-4 h-4" /> Déconnexion
+          <LogOut className="w-4 h-4 shrink-0" /> {!collapsed && "Déconnexion"}
         </button>
-      </aside>
+      </motion.aside>
 
       {/* Drawer mobile */}
       <AnimatePresence>
