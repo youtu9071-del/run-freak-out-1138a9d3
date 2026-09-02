@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Calendar, ShoppingBag, Users, LogOut, QrCode, Swords, Handshake, Ticket,
   LayoutDashboard, LifeBuoy, MessagesSquare, Settings, UserCog, Menu, X, Receipt, PanelLeftClose, PanelLeftOpen,
+  RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminEvents from "./AdminEvents";
@@ -18,6 +19,7 @@ import AdminTickets from "./AdminTickets";
 import AdminSupport from "./AdminSupport";
 import AdminOverview from "./AdminOverview";
 import AdminOrders from "./AdminOrders";
+import AdminSeason from "./AdminSeason";
 
 type Page = {
   v: string;
@@ -63,6 +65,12 @@ const GROUPS: { title: string; pages: Page[] }[] = [
     pages: [
       { v: "support", l: "Demandes de support", sub: "Toutes les demandes utilisateurs", i: LifeBuoy, c: <AdminSupport />, badge: "support" },
       { v: "conversations", l: "Conversations", sub: "Échanges avec les utilisateurs", i: MessagesSquare, c: <AdminSupport /> },
+    ],
+  },
+  {
+    title: "Gestion de la saison",
+    pages: [
+      { v: "season", l: "Réinitialiser la saison", sub: "Nouvelle saison, progression remise à zéro", i: RotateCcw, c: <AdminSeason /> },
     ],
   },
   {
