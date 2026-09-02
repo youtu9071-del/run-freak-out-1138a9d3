@@ -518,6 +518,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           fitness_level: Database["public"]["Enums"]["fitness_level"] | null
+          fp_base: number
           gender: Database["public"]["Enums"]["gender_type"] | null
           goal: Database["public"]["Enums"]["fitness_goal"] | null
           id: string
@@ -535,6 +536,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           fitness_level?: Database["public"]["Enums"]["fitness_level"] | null
+          fp_base?: number
           gender?: Database["public"]["Enums"]["gender_type"] | null
           goal?: Database["public"]["Enums"]["fitness_goal"] | null
           id?: string
@@ -552,6 +554,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           fitness_level?: Database["public"]["Enums"]["fitness_level"] | null
+          fp_base?: number
           gender?: Database["public"]["Enums"]["gender_type"] | null
           goal?: Database["public"]["Enums"]["fitness_goal"] | null
           id?: string
@@ -621,6 +624,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      season_reset_logs: {
+        Row: {
+          admin_id: string
+          created_at: string
+          duels_settled: number
+          fp_refunded: number
+          id: string
+          result: string
+          season_from: number
+          season_to: number
+          team_challenges_settled: number
+          total_fp_reset: number
+          total_km_reset: number
+          users_affected: number
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          duels_settled?: number
+          fp_refunded?: number
+          id?: string
+          result?: string
+          season_from: number
+          season_to: number
+          team_challenges_settled?: number
+          total_fp_reset?: number
+          total_km_reset?: number
+          users_affected?: number
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          duels_settled?: number
+          fp_refunded?: number
+          id?: string
+          result?: string
+          season_from?: number
+          season_to?: number
+          team_challenges_settled?: number
+          total_fp_reset?: number
+          total_km_reset?: number
+          users_affected?: number
+        }
+        Relationships: []
+      }
+      seasons: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          id: string
+          number: number
+          started_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          number: number
+          started_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          number?: number
+          started_at?: string
+        }
+        Relationships: []
       }
       support_messages: {
         Row: {
@@ -829,6 +904,29 @@ export type Database = {
         Returns: undefined
       }
       accept_team_invite: { Args: { p_team_id: string }; Returns: undefined }
+      admin_reset_season: {
+        Args: never
+        Returns: {
+          duels_settled: number
+          fp_refunded: number
+          fp_reset: number
+          km_reset: number
+          new_season: number
+          team_challenges_settled: number
+          users_affected: number
+        }[]
+      }
+      admin_season_overview: {
+        Args: never
+        Returns: {
+          last_reset_at: string
+          season_number: number
+          season_started_at: string
+          total_fp: number
+          total_km: number
+          users_count: number
+        }[]
+      }
       claim_partner_invite: { Args: { p_token: string }; Returns: boolean }
       cleanup_expired_events: { Args: never; Returns: undefined }
       create_duel_invite: {
@@ -840,6 +938,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_season_start: { Args: never; Returns: string }
       duel_level_stake: { Args: { p_level: string }; Returns: number }
       expire_duel_invites: { Args: never; Returns: undefined }
       expire_old_challenges: { Args: never; Returns: undefined }
