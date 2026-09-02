@@ -904,6 +904,10 @@ export type Database = {
         Returns: undefined
       }
       accept_team_invite: { Args: { p_team_id: string }; Returns: undefined }
+      admin_delete_product: {
+        Args: { p_product_id: string }
+        Returns: undefined
+      }
       admin_reset_season: {
         Args: never
         Returns: {
