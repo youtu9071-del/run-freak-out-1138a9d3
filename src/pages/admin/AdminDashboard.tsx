@@ -19,6 +19,7 @@ import AdminTickets from "./AdminTickets";
 import AdminSupport from "./AdminSupport";
 import AdminOverview from "./AdminOverview";
 import AdminOrders from "./AdminOrders";
+import AdminSeason from "./AdminSeason";
 
 type Page = {
   v: string;
