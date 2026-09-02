@@ -66,6 +66,12 @@ const GROUPS: { title: string; pages: Page[] }[] = [
     ],
   },
   {
+    title: "Gestion de la saison",
+    pages: [
+      { v: "season", l: "Réinitialiser la saison", sub: "Nouvelle saison, progression remise à zéro", i: RotateCcw, c: <AdminSeason /> },
+    ],
+  },
+  {
     title: "Administration",
     pages: [
       { v: "settings", l: "Paramètres", sub: "Réglages de la plateforme", i: Settings, c: <AdminSettings /> },
