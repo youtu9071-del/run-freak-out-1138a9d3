@@ -200,6 +200,57 @@ export default function ActivityScreen() {
     }
   }, []);
 
+  // ─── Suivi en arrière-plan renforcé (façon Strava) ───
+  // 1) Wake Lock : empêche la mise en veille de l'écran pendant la course.
+  // 2) Watchdog : si le navigateur gèle le watchPosition (onglet en arrière-plan),
+  //    on le relance dès le retour au premier plan ou après 20 s sans fix.
+  useEffect(() => {
+    if (state !== "running") {
+      if (wakeLockRef.current) {
+        try { wakeLockRef.current.release(); } catch { /* ignore */ }
+        wakeLockRef.current = null;
+      }
+      return;
+    }
+
+    const acquireWakeLock = async () => {
+      try {
+        const wl = (navigator as any).wakeLock;
+        if (wl && !wakeLockRef.current) wakeLockRef.current = await wl.request("screen");
+      } catch { /* non supporté */ }
+    };
+    acquireWakeLock();
+
+    const restartWatch = () => {
+      stopGps();
+      smoothedRef.current = null; // évite un lissage à partir d'un fix périmé
+      lastFixRef.current = Date.now();
+      startGps();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      acquireWakeLock();
+      if (Date.now() - lastFixRef.current > 8000) restartWatch();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    const watchdog = window.setInterval(() => {
+      if (document.visibilityState === "visible" && Date.now() - lastFixRef.current > 20000) {
+        restartWatch();
+      }
+    }, 10000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(watchdog);
+      if (wakeLockRef.current) {
+        try { wakeLockRef.current.release(); } catch { /* ignore */ }
+        wakeLockRef.current = null;
+      }
+    };
+  }, [state, startGps, stopGps]);
+
   // ─── Timer ───
   useEffect(() => {
     if (state === "running") {
