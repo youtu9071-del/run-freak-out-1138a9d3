@@ -567,13 +567,48 @@ export default function ActivityScreen() {
           )}
         </motion.div>
 
+        {/* Carte de performance partageable */}
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setShowShare(true)}
+          aria-label="Créer une image de performance"
+          className="mt-4 w-full rounded-2xl bg-foreground/[0.04] border border-foreground/10 py-3.5 flex items-center justify-center gap-2 text-foreground/90"
+        >
+          <Camera className="w-5 h-5 text-primary" />
+          <span className="text-xs font-display font-black tracking-[0.18em] uppercase">Image de performance</span>
+        </motion.button>
+
+        <AnimatePresence>
+          {showShare && (
+            <Suspense fallback={null}>
+              <RunShareCard
+                onClose={() => setShowShare(false)}
+                data={{
+                  username: profile?.username || "runner",
+                  avatarUrl: profile?.avatar_url ?? null,
+                  levelName: (profile as any)?.level_name ?? null,
+                  distanceKm: distance,
+                  durationSeconds: seconds,
+                  paceLabel: formatPace(),
+                  speedKmh: speed,
+                  fp: savedFp ?? 0,
+                  gpsPoints: gpsPoints.map((p) => ({ lat: p.lat, lng: p.lng })),
+                }}
+              />
+            </Suspense>
+          )}
+        </AnimatePresence>
+
         <motion.button
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.65 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate("/")}
-          className="mt-6 w-full rounded-2xl gradient-primary py-4 font-display font-black tracking-wide text-primary-foreground neon-glow"
+          className="mt-3 w-full rounded-2xl gradient-primary py-4 font-display font-black tracking-wide text-primary-foreground neon-glow"
         >
           RETOUR À L'ACCUEIL
         </motion.button>
