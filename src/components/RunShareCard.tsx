@@ -124,7 +124,10 @@ async function drawCard(data: RunShareData): Promise<Blob> {
   ctx.fill();
   ctx.stroke();
 
-  const pts = privacyTrim(data.gpsPoints.filter((p) => isFinite(p.lat) && isFinite(p.lng)));
+  const raw = data.gpsPoints.filter(
+    (p) => isFinite(p.lat) && isFinite(p.lng) && (p.lat !== 0 || p.lng !== 0)
+  );
+  const pts = privacyTrim(raw).length >= 2 ? privacyTrim(raw) : raw;
   if (pts.length >= 2) {
     const lats = pts.map((p) => p.lat), lngs = pts.map((p) => p.lng);
     const minLat = Math.min(...lats), maxLat = Math.max(...lats);
@@ -154,11 +157,28 @@ async function drawCard(data: RunShareData): Promise<Blob> {
     ctx.beginPath();
     pts.forEach((p, i) => { const [x, y] = px(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
     ctx.stroke();
+    // Départ / arrivée
+    const [sx, sy] = px(pts[0]);
+    const [ex, ey] = px(pts[pts.length - 1]);
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath(); ctx.arc(ex, ey, 16, 0, Math.PI * 2); ctx.fill();
+  } else if (pts.length === 1) {
+    const cx = mapX + mapW / 2, cy = mapY + mapH / 2;
+    ctx.fillStyle = "rgba(34,197,94,0.25)";
+    ctx.beginPath(); ctx.arc(cx, cy, 46, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.font = "600 30px 'Space Grotesk', Inter, sans-serif";
+    ctx.fillText("Point de départ enregistré", cx, cy + 110);
   } else {
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     ctx.font = "600 34px 'Space Grotesk', Inter, sans-serif";
-    ctx.fillText("Tracé GPS indisponible", W / 2, mapY + mapH / 2);
+    ctx.fillText("Aucun déplacement GPS enregistré", W / 2, mapY + mapH / 2);
   }
+
 
   // ── Statistiques
   const stats: [string, string][] = [
