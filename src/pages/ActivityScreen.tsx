@@ -38,6 +38,7 @@ export default function ActivityScreen() {
   const smoothedRef = useRef<GpsPoint | null>(null);
   const restoredRef = useRef(false);
   const wakeLockRef = useRef<any>(null);
+  const lastFixRef = useRef<number>(0);
 
   // ─── Persistance de la course (reprise automatique après fermeture / notification) ───
   const RUN_KEY = "freakout_active_run";
