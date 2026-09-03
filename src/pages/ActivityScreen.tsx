@@ -122,6 +122,7 @@ export default function ActivityScreen() {
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         setGpsStatus("active");
+        lastFixRef.current = Date.now();
         const acc = pos.coords.accuracy ?? 999;
         setGpsAccuracy(acc);
 
