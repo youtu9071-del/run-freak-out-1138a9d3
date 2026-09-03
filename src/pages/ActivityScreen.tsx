@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, Square, Route, Timer, Zap, ChevronLeft, Shield, ShieldAlert, ShieldX, MapPin, Footprints, Gauge, Flame, Crosshair, Trophy } from "lucide-react";
+import { Play, Pause, Square, Route, Timer, Zap, ChevronLeft, Shield, ShieldAlert, ShieldX, MapPin, Footprints, Gauge, Flame, Crosshair, Trophy, Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { calculateCalories } from "@/lib/gamification";
 import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeSession, CheatAlert, SessionIntegrity } from "@/lib/anticheat";
@@ -11,6 +11,7 @@ import { lazy, Suspense } from "react";
 import { requestNotifPermission, showActivityNotification, hideActivityNotification } from "@/lib/activityNotification";
 
 const ActivityMap = lazy(() => import("@/components/ActivityMap"));
+const RunShareCard = lazy(() => import("@/components/RunShareCard"));
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
@@ -30,11 +31,14 @@ export default function ActivityScreen() {
   const [recenterKey, setRecenterKey] = useState(0);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [showShare, setShowShare] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
   const smoothedRef = useRef<GpsPoint | null>(null);
   const restoredRef = useRef(false);
+  const wakeLockRef = useRef<any>(null);
+  const lastFixRef = useRef<number>(0);
 
   // ─── Persistance de la course (reprise automatique après fermeture / notification) ───
   const RUN_KEY = "freakout_active_run";
@@ -119,6 +123,7 @@ export default function ActivityScreen() {
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         setGpsStatus("active");
+        lastFixRef.current = Date.now();
         const acc = pos.coords.accuracy ?? 999;
         setGpsAccuracy(acc);
 
@@ -194,6 +199,57 @@ export default function ActivityScreen() {
       watchIdRef.current = null;
     }
   }, []);
+
+  // ─── Suivi en arrière-plan renforcé (façon Strava) ───
+  // 1) Wake Lock : empêche la mise en veille de l'écran pendant la course.
+  // 2) Watchdog : si le navigateur gèle le watchPosition (onglet en arrière-plan),
+  //    on le relance dès le retour au premier plan ou après 20 s sans fix.
+  useEffect(() => {
+    if (state !== "running") {
+      if (wakeLockRef.current) {
+        try { wakeLockRef.current.release(); } catch { /* ignore */ }
+        wakeLockRef.current = null;
+      }
+      return;
+    }
+
+    const acquireWakeLock = async () => {
+      try {
+        const wl = (navigator as any).wakeLock;
+        if (wl && !wakeLockRef.current) wakeLockRef.current = await wl.request("screen");
+      } catch { /* non supporté */ }
+    };
+    acquireWakeLock();
+
+    const restartWatch = () => {
+      stopGps();
+      smoothedRef.current = null; // évite un lissage à partir d'un fix périmé
+      lastFixRef.current = Date.now();
+      startGps();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      acquireWakeLock();
+      if (Date.now() - lastFixRef.current > 8000) restartWatch();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    const watchdog = window.setInterval(() => {
+      if (document.visibilityState === "visible" && Date.now() - lastFixRef.current > 20000) {
+        restartWatch();
+      }
+    }, 10000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(watchdog);
+      if (wakeLockRef.current) {
+        try { wakeLockRef.current.release(); } catch { /* ignore */ }
+        wakeLockRef.current = null;
+      }
+    };
+  }, [state, startGps, stopGps]);
 
   // ─── Timer ───
   useEffect(() => {
@@ -511,13 +567,48 @@ export default function ActivityScreen() {
           )}
         </motion.div>
 
+        {/* Carte de performance partageable */}
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setShowShare(true)}
+          aria-label="Créer une image de performance"
+          className="mt-4 w-full rounded-2xl bg-foreground/[0.04] border border-foreground/10 py-3.5 flex items-center justify-center gap-2 text-foreground/90"
+        >
+          <Camera className="w-5 h-5 text-primary" />
+          <span className="text-xs font-display font-black tracking-[0.18em] uppercase">Image de performance</span>
+        </motion.button>
+
+        <AnimatePresence>
+          {showShare && (
+            <Suspense fallback={null}>
+              <RunShareCard
+                onClose={() => setShowShare(false)}
+                data={{
+                  username: profile?.username || "runner",
+                  avatarUrl: profile?.avatar_url ?? null,
+                  levelName: (profile as any)?.level_name ?? null,
+                  distanceKm: distance,
+                  durationSeconds: seconds,
+                  paceLabel: formatPace(),
+                  speedKmh: speed,
+                  fp: savedFp ?? 0,
+                  gpsPoints: gpsPoints.map((p) => ({ lat: p.lat, lng: p.lng })),
+                }}
+              />
+            </Suspense>
+          )}
+        </AnimatePresence>
+
         <motion.button
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.65 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate("/")}
-          className="mt-6 w-full rounded-2xl gradient-primary py-4 font-display font-black tracking-wide text-primary-foreground neon-glow"
+          className="mt-3 w-full rounded-2xl gradient-primary py-4 font-display font-black tracking-wide text-primary-foreground neon-glow"
         >
           RETOUR À L'ACCUEIL
         </motion.button>
