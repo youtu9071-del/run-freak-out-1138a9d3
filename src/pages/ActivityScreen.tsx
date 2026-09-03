@@ -11,6 +11,7 @@ import { lazy, Suspense } from "react";
 import { requestNotifPermission, showActivityNotification, hideActivityNotification } from "@/lib/activityNotification";
 
 const ActivityMap = lazy(() => import("@/components/ActivityMap"));
+const RunShareCard = lazy(() => import("@/components/RunShareCard"));
 
 type TrackingState = "idle" | "running" | "paused" | "finished";
 
