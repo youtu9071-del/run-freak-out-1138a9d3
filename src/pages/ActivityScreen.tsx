@@ -44,8 +44,23 @@ export default function ActivityScreen() {
   const baseSecondsRef = useRef(0);
   const snapshotRef = useRef<any>(null);
 
-  // ─── Persistance de la course (reprise automatique après fermeture / notification) ───
+  // ─── Persistance de la course (reprise automatique après veille / fermeture) ───
   const RUN_KEY = "freakout_active_run";
+
+  /** Écrit immédiatement l'état complet de la course (appelable hors cycle React). */
+  const persistNow = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap || (snap.state !== "running" && snap.state !== "paused")) return;
+    try {
+      const live =
+        snap.state === "running" && runStartRef.current
+          ? baseSecondsRef.current + Math.max(0, Math.floor((Date.now() - runStartRef.current) / 1000))
+          : snap.seconds;
+      localStorage.setItem(RUN_KEY, JSON.stringify({ ...snap, seconds: live, savedAt: Date.now() }));
+    } catch { /* quota */ }
+  }, []);
+
+
 
 
 
