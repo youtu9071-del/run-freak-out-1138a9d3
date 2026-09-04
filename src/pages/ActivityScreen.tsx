@@ -336,7 +336,7 @@ export default function ActivityScreen() {
     return () => { document.title = "FREAK OUT"; };
   }, [state, distance]);
 
-  // ─── Reprise automatique d'une course en cours (retour via notification) ───
+  // ─── Reprise automatique d'une course en cours (retour de veille / notification) ───
   useEffect(() => {
     if (restoredRef.current) return;
     restoredRef.current = true;
@@ -345,10 +345,14 @@ export default function ActivityScreen() {
       if (!raw) return;
       const saved = JSON.parse(raw);
       if (!saved || (saved.state !== "running" && saved.state !== "paused")) return;
-      const elapsedSinceSave = saved.state === "running" && saved.savedAt
+      const running = saved.state === "running";
+      // Le temps écoulé pendant que le téléphone était verrouillé est réintégré
+      const elapsedSinceSave = running && saved.savedAt
         ? Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000))
         : 0;
-      setSeconds((saved.seconds || 0) + elapsedSinceSave);
+      baseSecondsRef.current = (saved.seconds || 0) + elapsedSinceSave;
+      runStartRef.current = running ? Date.now() : null;
+      setSeconds(baseSecondsRef.current);
       setDistance(saved.distance || 0);
       setSteps(saved.steps || 0);
       const pts: GpsPoint[] = saved.gpsPoints || [];
@@ -358,25 +362,25 @@ export default function ActivityScreen() {
         setInitialPos({ lat: pts[pts.length - 1].lat, lng: pts[pts.length - 1].lng });
       }
       setState(saved.state);
-      if (saved.state === "running") startGps();
+      if (running) startGps();
     } catch { /* ignore */ }
   }, [startGps]);
 
   // ─── Sauvegarde continue de l'état de la course ───
   useEffect(() => {
     if (state === "running" || state === "paused") {
-      localStorage.setItem(
-        RUN_KEY,
-        JSON.stringify({
-          state,
-          seconds,
-          distance,
-          steps,
-          gpsPoints: gpsPoints.slice(-400),
-          savedAt: Date.now(),
-        })
-      );
+      const snap = {
+        state,
+        seconds,
+        distance,
+        steps,
+        gpsPoints: gpsPoints.slice(-800),
+        savedAt: Date.now(),
+      };
+      snapshotRef.current = snap;
+      try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch { /* quota */ }
     } else {
+      snapshotRef.current = null;
       localStorage.removeItem(RUN_KEY);
     }
   }, [state, seconds, distance, steps, gpsPoints]);
@@ -385,11 +389,23 @@ export default function ActivityScreen() {
   // ─── Controls ───
   const handleStart = async () => {
     await requestNotifPermission();
+    baseSecondsRef.current = 0;
+    runStartRef.current = Date.now();
     setState("running");
     startGps();
   };
-  const handlePause = () => { setState("paused"); stopGps(); };
-  const handleResume = () => { setState("running"); startGps(); };
+  const handlePause = () => {
+    baseSecondsRef.current = seconds;
+    runStartRef.current = null;
+    setState("paused");
+    stopGps();
+    persistNow();
+  };
+  const handleResume = () => {
+    runStartRef.current = Date.now();
+    setState("running");
+    startGps();
+  };
 
   const handleFinish = async () => {
     hideActivityNotification();
