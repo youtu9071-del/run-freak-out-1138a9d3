@@ -39,9 +39,28 @@ export default function ActivityScreen() {
   const restoredRef = useRef(false);
   const wakeLockRef = useRef<any>(null);
   const lastFixRef = useRef<number>(0);
+  // Chrono ancré sur l'horloge murale : la veille / le verrouillage ne fait plus perdre de temps
+  const runStartRef = useRef<number | null>(null);
+  const baseSecondsRef = useRef(0);
+  const snapshotRef = useRef<any>(null);
 
-  // ─── Persistance de la course (reprise automatique après fermeture / notification) ───
+  // ─── Persistance de la course (reprise automatique après veille / fermeture) ───
   const RUN_KEY = "freakout_active_run";
+
+  /** Écrit immédiatement l'état complet de la course (appelable hors cycle React). */
+  const persistNow = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap || (snap.state !== "running" && snap.state !== "paused")) return;
+    try {
+      const live =
+        snap.state === "running" && runStartRef.current
+          ? baseSecondsRef.current + Math.max(0, Math.floor((Date.now() - runStartRef.current) / 1000))
+          : snap.seconds;
+      localStorage.setItem(RUN_KEY, JSON.stringify({ ...snap, seconds: live, savedAt: Date.now() }));
+    } catch { /* quota */ }
+  }, []);
+
+
 
 
 
@@ -229,20 +248,38 @@ export default function ActivityScreen() {
     };
 
     const onVisibility = () => {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== "visible") {
+        // Écran éteint / app en arrière-plan : on ne coupe JAMAIS le suivi,
+        // on sauvegarde simplement l'état pour pouvoir reprendre sans perte.
+        persistNow();
+        return;
+      }
       acquireWakeLock();
+      // Retour au premier plan : le navigateur a pu geler watchPosition → on le relance
       if (Date.now() - lastFixRef.current > 8000) restartWatch();
     };
 
+    const onResume = () => { acquireWakeLock(); restartWatch(); };
+
     document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("resume", onResume);
+    window.addEventListener("pagehide", persistNow);
+    window.addEventListener("beforeunload", persistNow);
+    (document as any).addEventListener?.("freeze", persistNow);
+
+    // Watchdog actif même écran éteint : si aucun fix depuis 45 s, on relance le watcher.
     const watchdog = window.setInterval(() => {
-      if (document.visibilityState === "visible" && Date.now() - lastFixRef.current > 20000) {
-        restartWatch();
-      }
+      persistNow();
+      const idle = Date.now() - lastFixRef.current;
+      if (idle > (document.visibilityState === "visible" ? 20000 : 45000)) restartWatch();
     }, 10000);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("resume", onResume);
+      window.removeEventListener("pagehide", persistNow);
+      window.removeEventListener("beforeunload", persistNow);
+      (document as any).removeEventListener?.("freeze", persistNow);
       window.clearInterval(watchdog);
       if (wakeLockRef.current) {
         try { wakeLockRef.current.release(); } catch { /* ignore */ }
@@ -251,13 +288,21 @@ export default function ActivityScreen() {
     };
   }, [state, startGps, stopGps]);
 
-  // ─── Timer ───
+  // ─── Chrono ancré sur l'horloge murale ───
+  // Le temps est recalculé depuis l'instant de départ : mise en veille, verrouillage
+  // ou gel de l'onglet ne font plus perdre une seule seconde.
   useEffect(() => {
-    if (state === "running") {
-      intervalRef.current = window.setInterval(() => setSeconds(s => s + 1), 1000);
-    } else {
+    if (state !== "running") {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
     }
+    if (runStartRef.current === null) runStartRef.current = Date.now();
+    const tick = () => {
+      const started = runStartRef.current ?? Date.now();
+      setSeconds(baseSecondsRef.current + Math.max(0, Math.floor((Date.now() - started) / 1000)));
+    };
+    tick();
+    intervalRef.current = window.setInterval(tick, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [state]);
 
@@ -291,7 +336,7 @@ export default function ActivityScreen() {
     return () => { document.title = "FREAK OUT"; };
   }, [state, distance]);
 
-  // ─── Reprise automatique d'une course en cours (retour via notification) ───
+  // ─── Reprise automatique d'une course en cours (retour de veille / notification) ───
   useEffect(() => {
     if (restoredRef.current) return;
     restoredRef.current = true;
@@ -300,10 +345,14 @@ export default function ActivityScreen() {
       if (!raw) return;
       const saved = JSON.parse(raw);
       if (!saved || (saved.state !== "running" && saved.state !== "paused")) return;
-      const elapsedSinceSave = saved.state === "running" && saved.savedAt
+      const running = saved.state === "running";
+      // Le temps écoulé pendant que le téléphone était verrouillé est réintégré
+      const elapsedSinceSave = running && saved.savedAt
         ? Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000))
         : 0;
-      setSeconds((saved.seconds || 0) + elapsedSinceSave);
+      baseSecondsRef.current = (saved.seconds || 0) + elapsedSinceSave;
+      runStartRef.current = running ? Date.now() : null;
+      setSeconds(baseSecondsRef.current);
       setDistance(saved.distance || 0);
       setSteps(saved.steps || 0);
       const pts: GpsPoint[] = saved.gpsPoints || [];
@@ -313,25 +362,25 @@ export default function ActivityScreen() {
         setInitialPos({ lat: pts[pts.length - 1].lat, lng: pts[pts.length - 1].lng });
       }
       setState(saved.state);
-      if (saved.state === "running") startGps();
+      if (running) startGps();
     } catch { /* ignore */ }
   }, [startGps]);
 
   // ─── Sauvegarde continue de l'état de la course ───
   useEffect(() => {
     if (state === "running" || state === "paused") {
-      localStorage.setItem(
-        RUN_KEY,
-        JSON.stringify({
-          state,
-          seconds,
-          distance,
-          steps,
-          gpsPoints: gpsPoints.slice(-400),
-          savedAt: Date.now(),
-        })
-      );
+      const snap = {
+        state,
+        seconds,
+        distance,
+        steps,
+        gpsPoints: gpsPoints.slice(-800),
+        savedAt: Date.now(),
+      };
+      snapshotRef.current = snap;
+      try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch { /* quota */ }
     } else {
+      snapshotRef.current = null;
       localStorage.removeItem(RUN_KEY);
     }
   }, [state, seconds, distance, steps, gpsPoints]);
@@ -340,11 +389,23 @@ export default function ActivityScreen() {
   // ─── Controls ───
   const handleStart = async () => {
     await requestNotifPermission();
+    baseSecondsRef.current = 0;
+    runStartRef.current = Date.now();
     setState("running");
     startGps();
   };
-  const handlePause = () => { setState("paused"); stopGps(); };
-  const handleResume = () => { setState("running"); startGps(); };
+  const handlePause = () => {
+    baseSecondsRef.current = seconds;
+    runStartRef.current = null;
+    setState("paused");
+    stopGps();
+    persistNow();
+  };
+  const handleResume = () => {
+    runStartRef.current = Date.now();
+    setState("running");
+    startGps();
+  };
 
   const handleFinish = async () => {
     hideActivityNotification();

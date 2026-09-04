@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       challenge_invites: {
         Row: {
+          accepted_at: string | null
           challenge_level: string | null
           challenged_id: string
           challenger_id: string
@@ -24,6 +25,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           distance_km: number
+          duel_ends_at: string | null
           expires_at: string
           id: string
           responded_at: string | null
@@ -34,6 +36,7 @@ export type Database = {
           winner_reward: number
         }
         Insert: {
+          accepted_at?: string | null
           challenge_level?: string | null
           challenged_id: string
           challenger_id: string
@@ -42,6 +45,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           distance_km?: number
+          duel_ends_at?: string | null
           expires_at?: string
           id?: string
           responded_at?: string | null
@@ -52,6 +56,7 @@ export type Database = {
           winner_reward?: number
         }
         Update: {
+          accepted_at?: string | null
           challenge_level?: string | null
           challenged_id?: string
           challenger_id?: string
@@ -60,6 +65,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           distance_km?: number
+          duel_ends_at?: string | null
           expires_at?: string
           id?: string
           responded_at?: string | null
@@ -237,6 +243,44 @@ export type Database = {
             columns: ["winner_team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duel_participations: {
+        Row: {
+          completed: boolean
+          created_at: string
+          distance_km: number
+          duration_seconds: number
+          id: string
+          invite_id: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          distance_km?: number
+          duration_seconds?: number
+          id?: string
+          invite_id: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          distance_km?: number
+          duration_seconds?: number
+          id?: string
+          invite_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duel_participations_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "challenge_invites"
             referencedColumns: ["id"]
           },
         ]
@@ -945,6 +989,7 @@ export type Database = {
       current_season_start: { Args: never; Returns: string }
       duel_level_stake: { Args: { p_level: string }; Returns: number }
       expire_duel_invites: { Args: never; Returns: undefined }
+      expire_duels: { Args: never; Returns: undefined }
       expire_old_challenges: { Args: never; Returns: undefined }
       expire_old_qrcodes: { Args: never; Returns: undefined }
       expire_team_challenges: { Args: never; Returns: undefined }
@@ -952,6 +997,7 @@ export type Database = {
         Args: { p_invite_id: string; p_winner_id: string }
         Returns: undefined
       }
+      finalize_duel_auto: { Args: { p_invite_id: string }; Returns: undefined }
       finalize_team_challenge: {
         Args: { p_challenge_id: string }
         Returns: {
@@ -1026,6 +1072,14 @@ export type Database = {
           p_team_id: string
         }
         Returns: string
+      }
+      submit_duel_run: {
+        Args: {
+          p_distance_km: number
+          p_duration_seconds: number
+          p_invite_id: string
+        }
+        Returns: undefined
       }
       submit_team_challenge_run: {
         Args: {
