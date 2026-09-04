@@ -233,20 +233,38 @@ export default function ActivityScreen() {
     };
 
     const onVisibility = () => {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== "visible") {
+        // Écran éteint / app en arrière-plan : on ne coupe JAMAIS le suivi,
+        // on sauvegarde simplement l'état pour pouvoir reprendre sans perte.
+        persistNow();
+        return;
+      }
       acquireWakeLock();
+      // Retour au premier plan : le navigateur a pu geler watchPosition → on le relance
       if (Date.now() - lastFixRef.current > 8000) restartWatch();
     };
 
+    const onResume = () => { acquireWakeLock(); restartWatch(); };
+
     document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("resume", onResume);
+    window.addEventListener("pagehide", persistNow);
+    window.addEventListener("beforeunload", persistNow);
+    (document as any).addEventListener?.("freeze", persistNow);
+
+    // Watchdog actif même écran éteint : si aucun fix depuis 45 s, on relance le watcher.
     const watchdog = window.setInterval(() => {
-      if (document.visibilityState === "visible" && Date.now() - lastFixRef.current > 20000) {
-        restartWatch();
-      }
+      persistNow();
+      const idle = Date.now() - lastFixRef.current;
+      if (idle > (document.visibilityState === "visible" ? 20000 : 45000)) restartWatch();
     }, 10000);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("resume", onResume);
+      window.removeEventListener("pagehide", persistNow);
+      window.removeEventListener("beforeunload", persistNow);
+      (document as any).removeEventListener?.("freeze", persistNow);
       window.clearInterval(watchdog);
       if (wakeLockRef.current) {
         try { wakeLockRef.current.release(); } catch { /* ignore */ }
@@ -255,13 +273,21 @@ export default function ActivityScreen() {
     };
   }, [state, startGps, stopGps]);
 
-  // ─── Timer ───
+  // ─── Chrono ancré sur l'horloge murale ───
+  // Le temps est recalculé depuis l'instant de départ : mise en veille, verrouillage
+  // ou gel de l'onglet ne font plus perdre une seule seconde.
   useEffect(() => {
-    if (state === "running") {
-      intervalRef.current = window.setInterval(() => setSeconds(s => s + 1), 1000);
-    } else {
+    if (state !== "running") {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
     }
+    if (runStartRef.current === null) runStartRef.current = Date.now();
+    const tick = () => {
+      const started = runStartRef.current ?? Date.now();
+      setSeconds(baseSecondsRef.current + Math.max(0, Math.floor((Date.now() - started) / 1000)));
+    };
+    tick();
+    intervalRef.current = window.setInterval(tick, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [state]);
 
