@@ -39,6 +39,10 @@ export default function ActivityScreen() {
   const restoredRef = useRef(false);
   const wakeLockRef = useRef<any>(null);
   const lastFixRef = useRef<number>(0);
+  // Chrono ancré sur l'horloge murale : la veille / le verrouillage ne fait plus perdre de temps
+  const runStartRef = useRef<number | null>(null);
+  const baseSecondsRef = useRef(0);
+  const snapshotRef = useRef<any>(null);
 
   // ─── Persistance de la course (reprise automatique après fermeture / notification) ───
   const RUN_KEY = "freakout_active_run";
