@@ -270,8 +270,6 @@ export default function UserProfile() {
               {sending ? "Envoi..." : "MISER 5 FP & DÉFIER"}
             </button>
           </div>
-
-          </div>
         </DialogContent>
       </Dialog>
     </div>
