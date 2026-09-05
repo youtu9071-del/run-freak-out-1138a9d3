@@ -501,6 +501,23 @@ export default function ActivityScreen() {
         }
       } catch { /* ignore */ }
 
+      // Si la course était celle d'un duel 1v1, on enregistre la participation
+      try {
+        const rawDuel = sessionStorage.getItem("active_duel");
+        if (rawDuel && !result.isBlocked) {
+          const duel = JSON.parse(rawDuel);
+          if (duel?.id) {
+            const { error } = await supabase.rpc("submit_duel_run" as any, {
+              p_invite_id: duel.id,
+              p_distance_km: activity.distanceKm,
+              p_duration_seconds: seconds,
+            });
+            if (!error) sessionStorage.removeItem("active_duel");
+          }
+        }
+      } catch { /* ignore */ }
+
+
       await refreshProfile();
       // Deuxième passe : garantit l'affichage du nouveau rang même si la réplication tarde
       setTimeout(() => { refreshProfile(); }, 1500);

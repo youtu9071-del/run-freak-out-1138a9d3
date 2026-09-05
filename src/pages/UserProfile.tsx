@@ -206,30 +206,27 @@ export default function UserProfile() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Défi 1v1 sécurisé. Mise prélevée immédiatement et placée dans le coffre 🔒.
-            </p>
-            <div>
-              <label className="text-xs text-muted-foreground mb-2 block">Niveau du défi (mise FP obligatoire)</label>
-              <div className="grid grid-cols-2 gap-2">
-                {DUEL_LEVELS.map((l) => (
-                  <button
-                    key={l.name}
-                    onClick={() => setChallengeLevel(l.name)}
-                    className={`py-2 px-2 rounded-xl text-[11px] font-bold transition-all ${
-                      challengeLevel === l.name
-                        ? "gradient-accent text-accent-foreground accent-glow"
-                        : "bg-secondary text-secondary-foreground"
-                    }`}
-                  >
-                    {l.name}
-                    <div className="text-[10px] opacity-80">{l.stake} FP</div>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-2">
-                Mise actuelle : <span className="text-accent font-bold">{selectedStake} FP</span> · Coffre total après acceptation : <span className="text-primary font-bold">{selectedStake * 2} FP</span> · Frais plateforme : 1 FP · Vainqueur reçoit : <span className="text-primary font-bold">{selectedStake * 2 - 1} FP</span>
+            <div className="rounded-2xl border border-accent/25 bg-accent/[0.06] p-4">
+              <p className="text-sm text-foreground font-semibold">Duel 1v1 · mise fixe 5 FP</p>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                Tes 5 FP sont bloqués dans le coffre 🔒. Si {profile.username} accepte, il mise
+                aussi 5 FP et un compte à rebours de <span className="text-accent font-bold">72 h</span> démarre.
+                Chacun court quand il veut pendant ce délai.
               </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-background/40 py-2">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Coffre</div>
+                  <div className="text-sm font-display font-black text-primary">10 FP</div>
+                </div>
+                <div className="rounded-xl bg-background/40 py-2">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Frais</div>
+                  <div className="text-sm font-display font-black text-muted-foreground">1 FP</div>
+                </div>
+                <div className="rounded-xl bg-background/40 py-2">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Gagnant</div>
+                  <div className="text-sm font-display font-black text-accent">9 FP</div>
+                </div>
+              </div>
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">Distance du défi</label>
@@ -249,16 +246,6 @@ export default function UserProfile() {
                 ))}
               </div>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-2 block">Date du défi</label>
-              <input
-                type="datetime-local"
-                value={challengeDate}
-                min={new Date().toISOString().slice(0, 16)}
-                onChange={(e) => setChallengeDate(e.target.value)}
-                className="w-full rounded-xl bg-secondary border border-border px-3 py-2 text-sm text-foreground"
-              />
-            </div>
             <button
               disabled={sending}
               onClick={async () => {
@@ -268,19 +255,19 @@ export default function UserProfile() {
                   p_challenged: id,
                   p_distance: challengeDistance,
                   p_level: challengeLevel,
-                  p_scheduled: new Date(challengeDate).toISOString(),
+                  p_scheduled: null,
                 });
                 if (error) {
                   toast.error(error.message || "Erreur lors de l'envoi");
                 } else {
-                  toast.success(`Défi envoyé ! ${selectedStake} FP prélevés 🔒`);
+                  toast.success("Défi envoyé ! 5 FP bloqués dans le coffre 🔒");
                   setChallengeOpen(false);
                 }
                 setSending(false);
               }}
               className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50"
             >
-              {sending ? "Envoi..." : `MISER ${selectedStake} FP & DÉFIER`}
+              {sending ? "Envoi..." : "MISER 5 FP & DÉFIER"}
             </button>
           </div>
         </DialogContent>
