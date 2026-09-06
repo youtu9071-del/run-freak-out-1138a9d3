@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import DuelsPanel from "@/components/DuelsPanel";
 
 type Tab = "defis" | "equipes";
 type ChallengeView = "list" | "create_team";
