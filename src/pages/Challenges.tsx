@@ -425,7 +425,10 @@ export default function Challenges() {
       <AnimatePresence mode="wait">
         {tab === "defis" && (
           <motion.div key="defis" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+            <DuelsPanel />
+
             <motion.button whileTap={{ scale: 0.97 }} onClick={() => setTab("equipes")} className="w-full rounded-2xl gradient-accent p-5 flex items-center gap-4 accent-glow">
+
               <Rocket className="w-8 h-8 text-accent-foreground" />
               <div className="text-left">
                 <p className="font-display font-bold text-lg text-accent-foreground">LANCER UN DÉFI</p>
