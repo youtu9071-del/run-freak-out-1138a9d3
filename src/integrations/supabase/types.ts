@@ -401,6 +401,104 @@ export type Database = {
         }
         Relationships: []
       }
+      leaderboard_positions: {
+        Row: {
+          distance_km: number
+          id: string
+          period: string
+          position: number
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          distance_km?: number
+          id?: string
+          period: string
+          position: number
+          recorded_at?: string
+          user_id: string
+        }
+        Update: {
+          distance_km?: number
+          id?: string
+          period?: string
+          position?: number
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mobile_money_orders: {
+        Row: {
+          admin_note: string | null
+          country: string | null
+          created_at: string
+          fp_price: number
+          id: string
+          operator: string
+          order_number: string
+          payout_amount: number
+          payout_currency: string
+          phone_number: string
+          processed_at: string | null
+          processed_by: string | null
+          product_id: string | null
+          product_name: string
+          refunded: boolean
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          country?: string | null
+          created_at?: string
+          fp_price: number
+          id?: string
+          operator: string
+          order_number: string
+          payout_amount: number
+          payout_currency?: string
+          phone_number: string
+          processed_at?: string | null
+          processed_by?: string | null
+          product_id?: string | null
+          product_name: string
+          refunded?: boolean
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          country?: string | null
+          created_at?: string
+          fp_price?: number
+          id?: string
+          operator?: string
+          order_number?: string
+          payout_amount?: number
+          payout_currency?: string
+          phone_number?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          product_id?: string | null
+          product_name?: string
+          refunded?: boolean
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobile_money_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -514,6 +612,7 @@ export type Database = {
       products: {
         Row: {
           category: string | null
+          country: string | null
           created_at: string
           currency: string
           description: string | null
@@ -523,11 +622,16 @@ export type Database = {
           in_stock: boolean | null
           max_fp_discount: number | null
           name: string
+          operator: string | null
+          payout_amount: number | null
+          payout_currency: string
           price: number
+          product_type: string
           stock_quantity: number | null
         }
         Insert: {
           category?: string | null
+          country?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -537,11 +641,16 @@ export type Database = {
           in_stock?: boolean | null
           max_fp_discount?: number | null
           name: string
+          operator?: string | null
+          payout_amount?: number | null
+          payout_currency?: string
           price: number
+          product_type?: string
           stock_quantity?: number | null
         }
         Update: {
           category?: string | null
+          country?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -551,7 +660,11 @@ export type Database = {
           in_stock?: boolean | null
           max_fp_discount?: number | null
           name?: string
+          operator?: string | null
+          payout_amount?: number | null
+          payout_currency?: string
           price?: number
+          product_type?: string
           stock_quantity?: number | null
         }
         Relationships: []
@@ -975,6 +1088,10 @@ export type Database = {
           users_count: number
         }[]
       }
+      admin_update_mm_order: {
+        Args: { p_note?: string; p_order_id: string; p_status: string }
+        Returns: undefined
+      }
       claim_partner_invite: { Args: { p_token: string }; Returns: boolean }
       cleanup_expired_events: { Args: never; Returns: undefined }
       create_duel_invite: {
@@ -1006,6 +1123,19 @@ export type Database = {
           winner_team_id: string
         }[]
       }
+      get_leaderboard: {
+        Args: { p_limit?: number; p_period?: string }
+        Returns: {
+          avatar_url: string
+          delta: number
+          distance_km: number
+          previous_position: number
+          rank_position: number
+          total_fp: number
+          user_id: string
+          username: string
+        }[]
+      }
       get_team_member_count: { Args: { p_team_id: string }; Returns: number }
       has_role: {
         Args: {
@@ -1026,6 +1156,16 @@ export type Database = {
           expired: boolean
           status: string
           used_at: string
+        }[]
+      }
+      period_start: { Args: { p_period: string }; Returns: string }
+      purchase_mobile_money: {
+        Args: { p_phone: string; p_product_id: string }
+        Returns: {
+          fp_price: number
+          order_id: string
+          order_number: string
+          status: string
         }[]
       }
       purchase_with_fp: {
@@ -1064,6 +1204,7 @@ export type Database = {
           used_at: string
         }[]
       }
+      snapshot_leaderboard: { Args: { p_period?: string }; Returns: undefined }
       start_team_challenge: {
         Args: {
           p_distance_km: number
