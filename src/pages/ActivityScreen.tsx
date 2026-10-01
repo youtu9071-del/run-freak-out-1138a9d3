@@ -525,9 +525,17 @@ export default function ActivityScreen() {
   };
 
 
-  const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
+  // ─── Vitesse & allure : précision renforcée ───
+  // Vitesse moyenne réelle (km/h) = distance / temps écoulé, 2 décimales.
+  const speed = seconds > 2 && distance > 0 ? distance / (seconds / 3600) : 0;
   const calories = calculateCalories(distance);
-  const paceSec = distance > 0.01 ? seconds / distance : 0;
+  // Allure (s/km) : calculée seulement à partir de 100 m pour éviter les valeurs absurdes.
+  const paceSec = distance >= 0.1 && seconds > 0 ? seconds / distance : 0;
+  // Un kilomètre ne peut pas être parcouru avec zéro pas :
+  // si le capteur de pas est absent/bloqué, on estime les pas depuis la distance GPS (~1250 pas/km).
+  const estimatedSteps = Math.round(distance * 1250);
+  const displaySteps = Math.max(steps, distance >= 0.1 ? estimatedSteps : 0);
+  const stepsEstimated = displaySteps > steps;
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
