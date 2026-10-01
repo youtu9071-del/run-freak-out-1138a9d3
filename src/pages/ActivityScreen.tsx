@@ -411,8 +411,10 @@ export default function ActivityScreen() {
     hideActivityNotification();
     stopGps();
     setState("finished");
-    const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
-    const result = analyzeSession(gpsPoints, steps, distance, speed);
+    const speed = seconds > 2 && distance > 0 ? distance / (seconds / 3600) : 0;
+    // Pas cohérents : impossible de parcourir 1 km avec 0 pas → estimation GPS (~1250 pas/km)
+    const finalSteps = Math.max(steps, distance >= 0.1 ? Math.round(distance * 1250) : 0);
+    const result = analyzeSession(gpsPoints, finalSteps, distance, speed);
 
     // ─── No-movement guard : bloque toute attribution de FP si l'utilisateur n'a pas bougé ───
     // Conditions cumulatives : distance mesurée < 50 m ET moins de 5 points GPS valides ET pas de pas détectés
@@ -437,7 +439,7 @@ export default function ActivityScreen() {
 
     setIntegrity(result);
 
-    const fp = calculateFP(distance, steps);
+    const fp = calculateFP(distance, finalSteps);
     const totalFp = result.isBlocked ? 0 : fp.totalFp;
     const cal = calculateCalories(distance);
 
@@ -446,9 +448,9 @@ export default function ActivityScreen() {
       id: Date.now().toString(),
       date: new Date().toISOString().split("T")[0],
       distanceKm: Math.round(distance * 100) / 100,
-      steps,
+      steps: finalSteps,
       durationMin: Math.round(seconds / 60),
-      avgSpeed: Math.round(speed * 10) / 10,
+      avgSpeed: Math.round(speed * 100) / 100,
       calories: cal,
       fpFromKm: fp.fpFromKm,
       fpFromSteps: fp.fpFromSteps,
@@ -525,9 +527,17 @@ export default function ActivityScreen() {
   };
 
 
-  const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
+  // ─── Vitesse & allure : précision renforcée ───
+  // Vitesse moyenne réelle (km/h) = distance / temps écoulé, 2 décimales.
+  const speed = seconds > 2 && distance > 0 ? distance / (seconds / 3600) : 0;
   const calories = calculateCalories(distance);
-  const paceSec = distance > 0.01 ? seconds / distance : 0;
+  // Allure (s/km) : calculée seulement à partir de 100 m pour éviter les valeurs absurdes.
+  const paceSec = distance >= 0.1 && seconds > 0 ? seconds / distance : 0;
+  // Un kilomètre ne peut pas être parcouru avec zéro pas :
+  // si le capteur de pas est absent/bloqué, on estime les pas depuis la distance GPS (~1250 pas/km).
+  const estimatedSteps = Math.round(distance * 1250);
+  const displaySteps = Math.max(steps, distance >= 0.1 ? estimatedSteps : 0);
+  const stepsEstimated = displaySteps > steps;
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -618,8 +628,8 @@ export default function ActivityScreen() {
         <div className="grid grid-cols-3 gap-2.5 mt-8">
           <MiniStat icon={Timer} label="Durée" value={formatTime(seconds)} delay={0.25} />
           <MiniStat icon={Gauge} label="Allure" value={formatPace()} unit="/km" tone="primary" delay={0.3} />
-          <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(1)} unit="km/h" tone="primary" delay={0.35} />
-          <MiniStat icon={Footprints} label="Pas" value={String(steps)} tone="accent" delay={0.4} />
+          <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(2)} unit="km/h" tone="primary" delay={0.35} />
+          <MiniStat icon={Footprints} label={stepsEstimated ? "Pas (est.)" : "Pas"} value={String(displaySteps)} tone="accent" delay={0.4} />
           <MiniStat icon={Flame} label="Calories" value={String(calories)} unit="kcal" tone="accent" delay={0.45} />
           <MiniStat icon={Route} label="Points GPS" value={String(gpsPoints.length)} delay={0.5} />
         </div>
@@ -852,8 +862,8 @@ export default function ActivityScreen() {
           <div className="grid grid-cols-3 gap-2 mt-4">
             <MiniStat icon={Timer} label="Durée" value={formatTime(seconds)} delay={0.05} />
             <MiniStat icon={Gauge} label="Allure" value={formatPace()} unit="/km" tone="primary" delay={0.1} />
-            <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(1)} unit="km/h" tone="primary" delay={0.15} />
-            <MiniStat icon={Footprints} label="Pas" value={String(steps)} tone="accent" delay={0.2} />
+            <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(2)} unit="km/h" tone="primary" delay={0.15} />
+            <MiniStat icon={Footprints} label={stepsEstimated ? "Pas (est.)" : "Pas"} value={String(displaySteps)} tone="accent" delay={0.2} />
             <MiniStat icon={Flame} label="Calories" value={String(calories)} unit="kcal" tone="accent" delay={0.25} />
             <MiniStat icon={Route} label="Points GPS" value={String(gpsPoints.length)} delay={0.3} />
           </div>
