@@ -411,8 +411,10 @@ export default function ActivityScreen() {
     hideActivityNotification();
     stopGps();
     setState("finished");
-    const speed = seconds > 0 ? distance / (seconds / 3600) : 0;
-    const result = analyzeSession(gpsPoints, steps, distance, speed);
+    const speed = seconds > 2 && distance > 0 ? distance / (seconds / 3600) : 0;
+    // Pas cohérents : impossible de parcourir 1 km avec 0 pas → estimation GPS (~1250 pas/km)
+    const finalSteps = Math.max(steps, distance >= 0.1 ? Math.round(distance * 1250) : 0);
+    const result = analyzeSession(gpsPoints, finalSteps, distance, speed);
 
     // ─── No-movement guard : bloque toute attribution de FP si l'utilisateur n'a pas bougé ───
     // Conditions cumulatives : distance mesurée < 50 m ET moins de 5 points GPS valides ET pas de pas détectés
@@ -437,7 +439,7 @@ export default function ActivityScreen() {
 
     setIntegrity(result);
 
-    const fp = calculateFP(distance, steps);
+    const fp = calculateFP(distance, finalSteps);
     const totalFp = result.isBlocked ? 0 : fp.totalFp;
     const cal = calculateCalories(distance);
 
@@ -446,9 +448,9 @@ export default function ActivityScreen() {
       id: Date.now().toString(),
       date: new Date().toISOString().split("T")[0],
       distanceKm: Math.round(distance * 100) / 100,
-      steps,
+      steps: finalSteps,
       durationMin: Math.round(seconds / 60),
-      avgSpeed: Math.round(speed * 10) / 10,
+      avgSpeed: Math.round(speed * 100) / 100,
       calories: cal,
       fpFromKm: fp.fpFromKm,
       fpFromSteps: fp.fpFromSteps,
