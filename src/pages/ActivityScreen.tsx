@@ -628,8 +628,8 @@ export default function ActivityScreen() {
         <div className="grid grid-cols-3 gap-2.5 mt-8">
           <MiniStat icon={Timer} label="Durée" value={formatTime(seconds)} delay={0.25} />
           <MiniStat icon={Gauge} label="Allure" value={formatPace()} unit="/km" tone="primary" delay={0.3} />
-          <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(1)} unit="km/h" tone="primary" delay={0.35} />
-          <MiniStat icon={Footprints} label="Pas" value={String(steps)} tone="accent" delay={0.4} />
+          <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(2)} unit="km/h" tone="primary" delay={0.35} />
+          <MiniStat icon={Footprints} label={stepsEstimated ? "Pas (est.)" : "Pas"} value={String(displaySteps)} tone="accent" delay={0.4} />
           <MiniStat icon={Flame} label="Calories" value={String(calories)} unit="kcal" tone="accent" delay={0.45} />
           <MiniStat icon={Route} label="Points GPS" value={String(gpsPoints.length)} delay={0.5} />
         </div>
@@ -862,8 +862,8 @@ export default function ActivityScreen() {
           <div className="grid grid-cols-3 gap-2 mt-4">
             <MiniStat icon={Timer} label="Durée" value={formatTime(seconds)} delay={0.05} />
             <MiniStat icon={Gauge} label="Allure" value={formatPace()} unit="/km" tone="primary" delay={0.1} />
-            <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(1)} unit="km/h" tone="primary" delay={0.15} />
-            <MiniStat icon={Footprints} label="Pas" value={String(steps)} tone="accent" delay={0.2} />
+            <MiniStat icon={Zap} label="Vitesse" value={speed.toFixed(2)} unit="km/h" tone="primary" delay={0.15} />
+            <MiniStat icon={Footprints} label={stepsEstimated ? "Pas (est.)" : "Pas"} value={String(displaySteps)} tone="accent" delay={0.2} />
             <MiniStat icon={Flame} label="Calories" value={String(calories)} unit="kcal" tone="accent" delay={0.25} />
             <MiniStat icon={Route} label="Points GPS" value={String(gpsPoints.length)} delay={0.3} />
           </div>
