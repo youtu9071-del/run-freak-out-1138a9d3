@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Calendar, ShoppingBag, Users, LogOut, QrCode, Swords, Handshake, Ticket,
   LayoutDashboard, LifeBuoy, MessagesSquare, Settings, UserCog, Menu, X, Receipt, PanelLeftClose, PanelLeftOpen,
-  RotateCcw,
+  RotateCcw, Smartphone,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminEvents from "./AdminEvents";
@@ -20,6 +20,7 @@ import AdminSupport from "./AdminSupport";
 import AdminOverview from "./AdminOverview";
 import AdminOrders from "./AdminOrders";
 import AdminSeason from "./AdminSeason";
+import AdminMobileMoney from "./AdminMobileMoney";
 
 type Page = {
   v: string;
@@ -51,6 +52,7 @@ const GROUPS: { title: string; pages: Page[] }[] = [
     pages: [
       { v: "products", l: "Produits", sub: "Catalogue et stocks", i: ShoppingBag, c: <AdminProducts /> },
       { v: "orders", l: "Commandes / achats", sub: "Historique des achats", i: Receipt, c: <AdminOrders />, badge: "orders" },
+      { v: "mobile-money", l: "Commandes Mobile Money", sub: "Transferts à traiter manuellement", i: Smartphone, c: <AdminMobileMoney /> },
     ],
   },
   {
