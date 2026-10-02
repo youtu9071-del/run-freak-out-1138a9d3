@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import freakoutLogo from "@/assets/freakout-logo.png";
+import MobileMoneyHistory from "./MobileMoneyHistory";
 
 export default function WalletContent() {
   const { profile, user } = useAuth();
@@ -197,6 +198,8 @@ export default function WalletContent() {
           <p className="text-xs text-primary-foreground/60">Points accumulés</p>
         </div>
       </motion.div>
+
+      <MobileMoneyHistory />
 
       {/* QR Codes Section */}
       <h2 className="font-display font-bold text-lg mb-3 flex items-center gap-2">
