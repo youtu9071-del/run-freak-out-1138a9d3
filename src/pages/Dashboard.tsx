@@ -3,7 +3,6 @@ import {
   Play,
   Flame,
   Route,
-  Timer,
   Zap,
   Swords,
   TrendingUp,
@@ -157,7 +156,7 @@ export default function Dashboard() {
         </div>
 
         {/* Activités */}
-        <div className="col-span-2">
+        <div className="col-span-4">
           <StatCard
             icon={Flame}
             label="Activités"
@@ -166,15 +165,6 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Pas totaux */}
-        <div className="col-span-2">
-          <StatCard
-            icon={Timer}
-            label="Pas totaux"
-            value={(profile?.total_steps || 0).toLocaleString()}
-            delay={0.35}
-          />
-        </div>
       </div>
 
       {/* Quick actions row */}

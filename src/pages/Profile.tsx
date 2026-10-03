@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Timer, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine, LifeBuoy } from "lucide-react";
+import { MapPin, Flame, Route, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel, getLevelProgress, LEVELS } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
@@ -68,7 +68,6 @@ export default function Profile() {
     { icon: Route, label: "Distance", value: totalKm.toFixed(1), unit: "km", color: "text-primary" },
     { icon: Flame, label: "Freak Points", value: Number(profile?.total_fp || 0).toFixed(1), unit: "FP", color: "text-accent" },
     { icon: Trophy, label: "Activités", value: String(profile?.total_activities || 0), unit: "", color: "text-primary" },
-    { icon: Timer, label: "Pas totaux", value: (profile?.total_steps || 0).toLocaleString(), unit: "", color: "text-accent" },
   ];
 
   return (
@@ -254,7 +253,7 @@ export default function Profile() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.06, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-4 relative overflow-hidden"
+            className={`rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md p-4 relative overflow-hidden ${i === 2 ? "col-span-2" : ""}`}
           >
             <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-primary/5 blur-xl" />
             <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
