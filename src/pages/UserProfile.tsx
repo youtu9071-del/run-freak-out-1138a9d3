@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Route, Flame, Trophy, Timer, ChevronLeft, UserPlus, UserMinus, Swords } from "lucide-react";
+import { MapPin, Route, Flame, Trophy, ChevronLeft, UserPlus, UserMinus, Swords } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel } from "@/lib/gamification";
@@ -193,8 +193,7 @@ export default function UserProfile() {
       <div className="grid grid-cols-2 gap-3">
         <StatCard icon={Route} label="Distance totale" value={Number(totalKm).toFixed(1)} unit="km" accent delay={0.1} />
         <StatCard icon={Trophy} label="Activités" value={profile.total_activities || 0} delay={0.15} />
-        <StatCard icon={Flame} label="Freak Points" value={Number(profile.total_fp || 0).toFixed(1)} unit="FP" delay={0.2} />
-        <StatCard icon={Timer} label="Pas totaux" value={(profile.total_steps || 0).toLocaleString()} delay={0.25} />
+        <StatCard icon={Flame} label="Freak Points" value={Number(profile.total_fp || 0).toFixed(1)} unit="FP" delay={0.2} className="col-span-2" />
       </div>
 
       {/* Challenge Dialog */}
