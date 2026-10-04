@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel } from "@/lib/gamification";
 import { supabase } from "@/integrations/supabase/client";
+import ReferralCard from "@/components/ReferralCard";
 
 type Period = "today" | "week" | "month" | "all";
 const PERIODS: { v: Period; l: string }[] = [
@@ -99,6 +100,8 @@ export default function Social() {
           <Trophy className="w-5 h-5 text-primary" />
         </div>
       </div>
+
+      <ReferralCard compact />
 
       {/* Sélecteur de période */}
       <div className="relative grid grid-cols-4 rounded-2xl bg-card/70 border border-border p-1 mb-4">

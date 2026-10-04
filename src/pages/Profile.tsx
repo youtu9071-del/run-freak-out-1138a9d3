@@ -9,6 +9,7 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useNavigate } from "react-router-dom";
 import ChallengeInvites from "@/components/ChallengeInvites";
 import NotificationsBell from "@/components/NotificationsBell";
+import ReferralCard from "@/components/ReferralCard";
 
 export default function Profile() {
   const { profile, user, signOut, refreshProfile } = useAuth();
@@ -267,6 +268,8 @@ export default function Profile() {
           </motion.div>
         ))}
       </div>
+
+      <ReferralCard />
 
       {/* Accès partenaire (scanner QR) — masqué pour les admins */}
       {isPartner && !isAdmin && (
