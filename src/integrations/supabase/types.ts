@@ -782,6 +782,36 @@ export type Database = {
           },
         ]
       }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referee_id: string
+          referrer_id: string
+          reward_fp: number
+          rewarded: boolean
+          rewarded_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referee_id: string
+          referrer_id: string
+          reward_fp?: number
+          rewarded?: boolean
+          rewarded_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referee_id?: string
+          referrer_id?: string
+          reward_fp?: number
+          rewarded?: boolean
+          rewarded_at?: string | null
+        }
+        Relationships: []
+      }
       season_reset_logs: {
         Row: {
           admin_id: string
@@ -1092,6 +1122,7 @@ export type Database = {
         Args: { p_note?: string; p_order_id: string; p_status: string }
         Returns: undefined
       }
+      apply_referral_reward: { Args: { p_referee: string }; Returns: undefined }
       claim_partner_invite: { Args: { p_token: string }; Returns: boolean }
       cleanup_expired_events: { Args: never; Returns: undefined }
       create_duel_invite: {
@@ -1149,6 +1180,18 @@ export type Database = {
         Returns: boolean
       }
       is_username_available: { Args: { p_username: string }; Returns: boolean }
+      my_referral_overview: {
+        Args: never
+        Returns: {
+          created_at: string
+          kind: string
+          km: number
+          other_avatar: string
+          other_username: string
+          reward_fp: number
+          rewarded: boolean
+        }[]
+      }
       partner_scan_validate: {
         Args: { p_uid: string }
         Returns: {
@@ -1204,6 +1247,7 @@ export type Database = {
           used_at: string
         }[]
       }
+      set_referrer: { Args: { p_username: string }; Returns: string }
       snapshot_leaderboard: { Args: { p_period?: string }; Returns: undefined }
       start_team_challenge: {
         Args: {
