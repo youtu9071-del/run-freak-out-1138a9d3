@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          disabled_at: string | null
+          enabled: boolean
+          enabled_at: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          disabled_at?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          disabled_at?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       challenge_invites: {
         Row: {
           accepted_at: string | null
@@ -249,30 +276,39 @@ export type Database = {
       }
       duel_participations: {
         Row: {
+          attempt_status: string
           completed: boolean
           created_at: string
           distance_km: number
           duration_seconds: number
+          finished_at: string | null
           id: string
           invite_id: string
+          started_at: string | null
           user_id: string
         }
         Insert: {
+          attempt_status?: string
           completed?: boolean
           created_at?: string
           distance_km?: number
           duration_seconds?: number
+          finished_at?: string | null
           id?: string
           invite_id: string
+          started_at?: string | null
           user_id: string
         }
         Update: {
+          attempt_status?: string
           completed?: boolean
           created_at?: string
           distance_km?: number
           duration_seconds?: number
+          finished_at?: string | null
           id?: string
           invite_id?: string
+          started_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1095,6 +1131,18 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: undefined
       }
+      admin_referral_list: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          referee_username: string
+          referrer_username: string
+          reward_fp: number
+          rewarded: boolean
+          rewarded_at: string
+        }[]
+      }
       admin_reset_season: {
         Args: never
         Returns: {
@@ -1117,6 +1165,10 @@ export type Database = {
           total_km: number
           users_count: number
         }[]
+      }
+      admin_set_referral_enabled: {
+        Args: { p_enabled: boolean }
+        Returns: undefined
       }
       admin_update_mm_order: {
         Args: { p_note?: string; p_order_id: string; p_status: string }
@@ -1222,7 +1274,12 @@ export type Database = {
           total_price: number
         }[]
       }
+      referral_enabled: { Args: never; Returns: boolean }
       refuse_duel_invite: { Args: { p_invite_id: string }; Returns: undefined }
+      resolve_duel: {
+        Args: { p_force: boolean; p_invite_id: string }
+        Returns: undefined
+      }
       scan_qrcode_lookup: {
         Args: { p_uid: string }
         Returns: {
@@ -1249,6 +1306,7 @@ export type Database = {
       }
       set_referrer: { Args: { p_username: string }; Returns: string }
       snapshot_leaderboard: { Args: { p_period?: string }; Returns: undefined }
+      start_duel_attempt: { Args: { p_invite_id: string }; Returns: undefined }
       start_team_challenge: {
         Args: {
           p_distance_km: number
@@ -1283,7 +1341,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "partner"
-      challenge_invite_status: "pending" | "accepted" | "refused" | "expired"
+      challenge_invite_status:
+        | "pending"
+        | "accepted"
+        | "refused"
+        | "expired"
+        | "completed"
       challenge_status:
         | "pending"
         | "active"
@@ -1423,7 +1486,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "partner"],
-      challenge_invite_status: ["pending", "accepted", "refused", "expired"],
+      challenge_invite_status: [
+        "pending",
+        "accepted",
+        "refused",
+        "expired",
+        "completed",
+      ],
       challenge_status: ["pending", "active", "completed", "open", "cancelled"],
       fitness_goal: ["perdre_poids", "endurance", "performance", "bien_etre"],
       fitness_level: ["debutant", "intermediaire", "avance", "pro"],
