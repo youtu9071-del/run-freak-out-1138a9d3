@@ -20,8 +20,8 @@ interface Duel {
   duel_ends_at: string | null;
   accepted_at: string | null;
   opponent: { username: string; avatar_url: string | null } | null;
-  mine?: { distance_km: number; duration_seconds: number } | null;
-  theirs?: { distance_km: number; duration_seconds: number } | null;
+  mine?: { distance_km: number; duration_seconds: number; attempt_status: string; completed: boolean } | null;
+  theirs?: { distance_km: number; duration_seconds: number; attempt_status: string; completed: boolean } | null;
 }
 
 function useCountdown(target?: string | null) {
@@ -53,6 +53,7 @@ export default function DuelsPanel() {
   const [duels, setDuels] = useState<Duel[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmDuel, setConfirmDuel] = useState<Duel | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -75,7 +76,7 @@ export default function DuelsPanel() {
           .maybeSingle();
         const { data: parts } = await supabase
           .from("duel_participations" as any)
-          .select("user_id, distance_km, duration_seconds")
+          .select("user_id, distance_km, duration_seconds, attempt_status, completed")
           .eq("invite_id", d.id);
         const list = (parts || []) as any[];
         return {
@@ -105,7 +106,12 @@ export default function DuelsPanel() {
     load();
   };
 
-  const runDuel = (d: Duel) => {
+  const runDuel = async (d: Duel) => {
+    setBusy(d.id);
+    const { error } = await supabase.rpc("start_duel_attempt" as any, { p_invite_id: d.id });
+    setBusy(null);
+    setConfirmDuel(null);
+    if (error) { toast.error(error.message); load(); return; }
     sessionStorage.setItem("active_duel", JSON.stringify({ id: d.id, distance: d.distance_km }));
     toast.success(`Cours ${d.distance_km} km pour ce duel 🔥`);
     navigate("/activity");
@@ -180,13 +186,13 @@ export default function DuelsPanel() {
                   <div className="rounded-2xl bg-primary/[0.07] border border-primary/20 px-3 py-2">
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Toi</p>
                     <p className="font-display font-black text-sm">
-                      {d.mine ? `${Number(d.mine.distance_km).toFixed(2)} km` : "En attente"}
+                      {partLabel(d.mine)}
                     </p>
                   </div>
                   <div className="rounded-2xl bg-secondary/60 border border-border px-3 py-2">
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Adversaire</p>
                     <p className="font-display font-black text-sm">
-                      {d.theirs ? `${Number(d.theirs.distance_km).toFixed(2)} km` : "En attente"}
+                      {partLabel(d.theirs)}
                     </p>
                   </div>
                 </div>
@@ -226,11 +232,11 @@ export default function DuelsPanel() {
                 {d.status === "accepted" && (
                   d.mine ? (
                     <div className="flex-1 rounded-2xl bg-primary/10 border border-primary/25 py-3 flex items-center justify-center gap-2 text-primary font-bold text-sm">
-                      <CheckCircle2 className="w-4 h-4" /> Participation enregistrée
+                      <CheckCircle2 className="w-4 h-4" /> {d.mine.attempt_status === "in_progress" ? "Tentative en cours" : "Tentative terminée"}
                     </div>
                   ) : (
                     <button
-                      onClick={() => runDuel(d)}
+                      onClick={() => setConfirmDuel(d)}
                       className="flex-1 rounded-2xl gradient-accent py-3 font-display font-bold text-sm text-accent-foreground accent-glow flex items-center justify-center gap-2"
                     >
                       <Play className="w-4 h-4" /> COURIR MON DUEL
@@ -242,6 +248,30 @@ export default function DuelsPanel() {
           );
         })}
       </AnimatePresence>
+
+      {confirmDuel && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setConfirmDuel(null)}>
+          <div className="w-full max-w-sm rounded-3xl border border-accent/30 bg-card p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="font-display font-black text-base mb-2">⚠️ Attention : cette course est votre unique tentative.</p>
+            <p className="text-sm text-muted-foreground mb-5">
+              Une fois la course lancée, vous ne pourrez plus recommencer ni effectuer une deuxième course pour ce défi.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDuel(null)} className="flex-1 rounded-2xl bg-secondary py-3 font-bold text-sm">Annuler</button>
+              <button disabled={busy === confirmDuel.id} onClick={() => runDuel(confirmDuel)}
+                className="flex-1 rounded-2xl gradient-accent py-3 font-display font-bold text-sm text-accent-foreground disabled:opacity-50">
+                Lancer ma course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function partLabel(p?: Duel["mine"]) {
+  if (!p) return "Pas encore participé";
+  if (p.attempt_status === "in_progress") return "Tentative en cours";
+  return `${Number(p.distance_km).toFixed(2)} km · ${p.completed ? "Distance atteinte" : "Non atteinte"}`;
 }

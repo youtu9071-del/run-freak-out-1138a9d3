@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Trophy, Award, Users, ShieldCheck, ChevronRight } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Trophy, Award, Users, ShieldCheck, ChevronRight, Gift } from "lucide-react";
 import authHero from "@/assets/auth-hero.png.asset.json";
 
 export default function Auth() {
