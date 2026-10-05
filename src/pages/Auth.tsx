@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Trophy, Award, Users, ShieldCheck, ChevronRight } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Trophy, Award, Users, ShieldCheck, ChevronRight, Gift } from "lucide-react";
 import authHero from "@/assets/auth-hero.png.asset.json";
 
 export default function Auth() {
@@ -12,6 +12,12 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [referrer, setReferrer] = useState("");
+  const [referralOn, setReferralOn] = useState(false);
+  useEffect(() => {
+    supabase.from("app_settings" as any).select("enabled").eq("key", "referral").maybeSingle()
+      .then(({ data }) => setReferralOn(!!(data as any)?.enabled));
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -59,10 +65,25 @@ export default function Auth() {
           return;
         }
 
+        const cleanRef = referralOn ? referrer.trim().replace(/^@/, "").slice(0, 50) : "";
+        if (cleanRef) {
+          if (cleanRef.toLowerCase() === cleanUsername.toLowerCase()) {
+            setError("Tu ne peux pas te parrainer toi-même");
+            setLoading(false);
+            return;
+          }
+          const { data: free } = await supabase.rpc("is_username_available" as any, { p_username: cleanRef });
+          if (free !== false) {
+            setError("Username du parrain introuvable");
+            setLoading(false);
+            return;
+          }
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { username: cleanUsername } },
+          options: { data: { username: cleanUsername, ...(cleanRef ? { referrer_username: cleanRef } : {}) } },
         });
         if (error) throw error;
       }
@@ -143,6 +164,25 @@ export default function Auth() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required={!isLogin}
+                    className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {!isLogin && referralOn && (
+              <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/60 px-3 py-2.5">
+                <div className="w-9 h-9 rounded-full border border-primary/40 flex items-center justify-center shrink-0">
+                  <Gift className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-[10px] font-bold tracking-[0.15em] text-primary">USERNAME DU PARRAIN (OPTIONNEL)</label>
+                  <input
+                    type="text"
+                    placeholder="pseudo de ton parrain"
+                    value={referrer}
+                    maxLength={50}
+                    onChange={(e) => setReferrer(e.target.value)}
                     className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                   />
                 </div>

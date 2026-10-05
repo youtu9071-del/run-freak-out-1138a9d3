@@ -90,25 +90,7 @@ export default function ReferralCard({ compact = false }: { compact?: boolean })
           <Check className="w-4 h-4 text-primary shrink-0" />
           <span>Parrainé par <b>@{sponsor.other_username}</b></span>
         </div>
-      ) : (
-        <div className="flex gap-2 mb-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            maxLength={50}
-            placeholder="Username de ton parrain"
-            className="flex-1 min-w-0 rounded-xl bg-secondary/60 border border-border px-3 py-2.5 text-sm outline-none focus:border-primary"
-          />
-          <button
-            onClick={submit}
-            disabled={busy || !name.trim()}
-            className="rounded-xl bg-primary text-primary-foreground px-3 font-bold text-xs flex items-center gap-1 disabled:opacity-50"
-          >
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Valider
-          </button>
-        </div>
-      )}
+      ) : null}
 
       {!compact && referees.length > 0 && (
         <div className="space-y-2">
