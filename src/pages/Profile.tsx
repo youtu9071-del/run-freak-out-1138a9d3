@@ -19,6 +19,16 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const { isAdmin, isPartner } = useAdmin();
   const navigate = useNavigate();
+  const [referralEnabled, setReferralEnabled] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("app_settings" as any)
+      .select("enabled")
+      .eq("key", "referral")
+      .maybeSingle()
+      .then(({ data }) => setReferralEnabled(!!(data as any)?.enabled));
+  }, []);
 
   const totalKm = Number(profile?.total_km || 0);
   const level = getLevel(totalKm);
@@ -269,7 +279,7 @@ export default function Profile() {
         ))}
       </div>
 
-      <ReferralCard />
+      {referralEnabled && <ReferralCard />}
 
       {/* Accès partenaire (scanner QR) — masqué pour les admins */}
       {isPartner && !isAdmin && (
