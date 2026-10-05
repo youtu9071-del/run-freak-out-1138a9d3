@@ -21,6 +21,8 @@ import AdminOverview from "./AdminOverview";
 import AdminOrders from "./AdminOrders";
 import AdminSeason from "./AdminSeason";
 import AdminMobileMoney from "./AdminMobileMoney";
+import AdminReferral from "./AdminReferral";
+import { Gift } from "lucide-react";
 
 type Page = {
   v: string;
@@ -53,6 +55,7 @@ const GROUPS: { title: string; pages: Page[] }[] = [
       { v: "products", l: "Produits", sub: "Catalogue et stocks", i: ShoppingBag, c: <AdminProducts /> },
       { v: "orders", l: "Commandes / achats", sub: "Historique des achats", i: Receipt, c: <AdminOrders />, badge: "orders" },
       { v: "mobile-money", l: "Commandes Mobile Money", sub: "Transferts à traiter manuellement", i: Smartphone, c: <AdminMobileMoney /> },
+      { v: "referral", l: "Gestion du parrainage", sub: "Activer / désactiver et suivre les parrainages", i: Gift, c: <AdminReferral /> },
     ],
   },
   {
