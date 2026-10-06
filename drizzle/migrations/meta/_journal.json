@@ -15,6 +15,13 @@
       "when": 1791077865048,
       "tag": "0001_duel_single_attempt_and_referral_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791278956027,
+      "tag": "0002_group_vs_group_challenges",
+      "breakpoints": true
     }
   ]
 }
