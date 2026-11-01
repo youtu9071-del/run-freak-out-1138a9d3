@@ -1,940 +1,488 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Users, Plus, Trophy, Clock, UserPlus, Search, Shield, Calendar, LogIn, X, Check, Trash2, Play, Flag, Rocket } from "lucide-react";
+import { Swords, Users, Plus, Trophy, UserPlus, Timer, X, Check, Trash2, Play, Lock, Crown, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import DuelsPanel from "@/components/DuelsPanel";
 
-type Tab = "defis" | "equipes";
-type ChallengeView = "list" | "create_team";
+type Tab = "defis" | "groupes";
+const DISTANCES = [5, 10, 15, 20];
+const STAKES = [5, 10, 20, 50];
+const DURATIONS = [
+  { h: 24, label: "24 h" }, { h: 48, label: "48 h" }, { h: 72, label: "72 h" }, { h: 168, label: "7 j" },
+];
+
+interface Member { user_id: string; username: string | null; avatar_url: string | null; distance_km: number | null; duration_seconds: number | null; completed: boolean; }
+interface GroupChallenge {
+  id: string; status: string; distance_km: number; stake_fp: number; coffre_amount: number; coffre_fee: number;
+  winner_reward: number; time_limit_hours: number; end_date: string | null; created_at: string;
+  winner_team_id: string | null; is_tie: boolean; avg_a: number | null; avg_b: number | null;
+  team_a: { id: string; name: string; creator_id: string | null }; team_b: { id: string; name: string; creator_id: string | null };
+  members_a: Member[]; members_b: Member[];
+}
+
+export function fmtTime(s?: number | null) {
+  if (s == null) return "—";
+  const t = Math.round(Number(s));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  return h > 0 ? `${h} h ${String(m).padStart(2, "0")} min ${String(sec).padStart(2, "0")} s` : `${m} min ${String(sec).padStart(2, "0")} s`;
+}
+
+export function groupAverage(members: Member[]): number | null {
+  const done = members.filter((m) => m.completed && m.duration_seconds != null);
+  if (done.length === 0) return null;
+  return done.reduce((a, m) => a + Number(m.duration_seconds), 0) / done.length;
+}
+
+function useNow() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, []);
+  return now;
+}
+function Remaining({ target }: { target?: string | null }) {
+  const now = useNow();
+  if (!target) return null;
+  const d = Math.max(0, new Date(target).getTime() - now);
+  const days = Math.floor(d / 86400000), h = Math.floor((d % 86400000) / 3600000), m = Math.floor((d % 3600000) / 60000), s = Math.floor((d % 60000) / 1000);
+  return <span className="font-display font-black tabular-nums text-accent">{days > 0 ? `${days} j ` : ""}{String(h).padStart(2, "0")}h {String(m).padStart(2, "0")}min {String(s).padStart(2, "0")}s</span>;
+}
+
+const Avatar = ({ m }: { m: { username?: string | null; avatar_url?: string | null } }) => (
+  <div className="w-7 h-7 rounded-full bg-secondary overflow-hidden flex items-center justify-center text-[10px] font-bold shrink-0">
+    {m.avatar_url ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" /> : (m.username?.[0] || "?").toUpperCase()}
+  </div>
+);
 
 export default function Challenges() {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth() as any;
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("defis");
-  const [view, setView] = useState<ChallengeView>("list");
-  const [teamName, setTeamName] = useState("");
-  const [teamSize, setTeamSize] = useState(3);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [challenges, setChallenges] = useState<any[]>([]);
-  const [participations, setParticipations] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [available, setAvailable] = useState<any[]>([]);
+  const [challenges, setChallenges] = useState<GroupChallenge[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
+  const [busy, setBusy] = useState(false);
+
   const [creating, setCreating] = useState(false);
-  const [joiningChallenge, setJoiningChallenge] = useState<string | null>(null);
+  const [groupName, setGroupName] = useState("");
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any[]>([]);
+  const [inviteFor, setInviteFor] = useState<any | null>(null);
 
-  // Launch challenge dialog
-  const [launchTeam, setLaunchTeam] = useState<any | null>(null);
-  const [launchDistance, setLaunchDistance] = useState(5);
-  const [launchReward, setLaunchReward] = useState(5);
-  const [launchEnd, setLaunchEnd] = useState("");
-  const [launching, setLaunching] = useState(false);
+  const [target, setTarget] = useState<any | null>(null);
+  const [dist, setDist] = useState(10);
+  const [stake, setStake] = useState(10);
+  const [hours, setHours] = useState(72);
 
-  // Accept challenge dialog
-  const [acceptChallenge, setAcceptChallenge] = useState<any | null>(null);
-  const [acceptTeamId, setAcceptTeamId] = useState<string>("");
-  const [accepting, setAccepting] = useState(false);
-
-  // New: date + member invitation
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [inviteSearch, setInviteSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedMembers, setSelectedMembers] = useState<any[]>([]);
-  const [followers, setFollowers] = useState<any[]>([]);
-  const [showFollowers, setShowFollowers] = useState(false);
-
-  // Add-member dialog state for existing teams
-  const [addMemberTeam, setAddMemberTeam] = useState<any | null>(null);
-  const [memberSearch, setMemberSearch] = useState("");
-  const [memberResults, setMemberResults] = useState<any[]>([]);
-
-  // Pending team invitations addressed to current user
-  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (user) {
-      // Auto-expire passed challenges (1v1 + team) first
-      Promise.all([
-        supabase.rpc("expire_old_challenges" as any),
-        supabase.rpc("expire_team_challenges" as any),
-      ]).then(() => {
-        fetchTeams();
-        fetchChallenges();
-        fetchPendingInvites();
-      });
-    }
+  const load = useCallback(async () => {
+    if (!user) return;
+    await supabase.rpc("expire_team_challenges" as any);
+    const [{ data }, { data: inv }] = await Promise.all([
+      supabase.rpc("my_group_challenges" as any),
+      supabase.from("team_members").select("id, team_id, invited_by").eq("user_id", user.id).eq("status", "invited"),
+    ]);
+    const d = (data || {}) as any;
+    setGroups(d.groups || []);
+    setAvailable(d.available || []);
+    setChallenges(d.challenges || []);
+    const list = await Promise.all((inv || []).map(async (i: any) => {
+      const { data: t } = await supabase.from("teams").select("name, status, expires_at").eq("id", i.team_id).maybeSingle();
+      const { data: p } = await supabase.from("profiles").select("username").eq("user_id", i.invited_by).maybeSingle();
+      return { ...i, team: t, inviter: p?.username };
+    }));
+    setInvites(list.filter((i) => (i.team as any)?.status === "waiting" && new Date((i.team as any).expires_at) > new Date()));
   }, [user]);
 
-  const fetchPendingInvites = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("team_members")
-      .select("id, team_id, invited_by, teams:team_id(name), inviter:invited_by(username)")
-      .eq("user_id", user.id)
-      .eq("status", "invited");
-    // Manually fetch team + inviter names (no FK relations in schema)
-    if (data && data.length > 0) {
-      const enriched = await Promise.all(
-        data.map(async (inv: any) => {
-          const { data: t } = await supabase.from("teams").select("name").eq("id", inv.team_id).maybeSingle();
-          const { data: p } = await supabase.from("profiles").select("username").eq("user_id", inv.invited_by).maybeSingle();
-          return { ...inv, team_name: t?.name, inviter_name: p?.username };
-        })
-      );
-      setPendingInvites(enriched);
-    } else {
-      setPendingInvites([]);
-    }
+  useEffect(() => { load(); }, [load]);
+
+  const run = async (fn: () => Promise<{ error: any }>, ok: string) => {
+    setBusy(true);
+    const { error } = await fn();
+    setBusy(false);
+    if (error) { toast.error(error.message || "Erreur"); return false; }
+    toast.success(ok); refreshProfile?.(); load(); return true;
   };
 
-  const respondInvite = async (inviteId: string, accept: boolean, teamId?: string) => {
-    if (accept) {
-      const { error } = await supabase.rpc("accept_team_invite" as any, { p_team_id: teamId });
-      if (error) { toast.error("Erreur"); return; }
-      toast.success("Tu as rejoint l'équipe ! 🔥");
-    } else {
-      const { error } = await supabase.from("team_members").delete().eq("id", inviteId);
-      if (error) { toast.error("Erreur"); return; }
-      toast.success("Invitation refusée");
-    }
-    fetchPendingInvites();
-    fetchTeams();
+  const myGroup = groups[0] || null;
+  const isCreator = myGroup && myGroup.creator_id === user?.id;
+  const acceptedCount = myGroup ? myGroup.members.filter((m: any) => m.status === "accepted").length : 0;
+
+  const searchUsers = async (q: string, exclude: string[]) => {
+    setSearch(q);
+    if (q.length < 2) { setResults([]); return; }
+    const { data } = await supabase.from("profiles").select("user_id, username, avatar_url").ilike("username", `%${q}%`).neq("user_id", user?.id || "").limit(8);
+    setResults((data || []).filter((p: any) => !exclude.includes(p.user_id)));
   };
 
-  const fetchTeams = async () => {
-    if (!user) return;
-    const { data: memberships } = await supabase
-      .from("team_members").select("team_id").eq("user_id", user.id).eq("status", "accepted");
-    if (!memberships || memberships.length === 0) { setTeams([]); return; }
-    const teamIds = memberships.map((m) => m.team_id);
-    const { data: teamsData } = await supabase.from("teams").select("*").in("id", teamIds);
-    if (teamsData) {
-      const teamsWithMembers = await Promise.all(
-        teamsData.map(async (team) => {
-          const { data: members } = await supabase.from("team_members").select("user_id, status").eq("team_id", team.id);
-          return { ...team, members: members || [] };
-        })
-      );
-      setTeams(teamsWithMembers);
-    }
-  };
-
-  const fetchChallenges = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("challenges")
-      .select("*, team_a:teams!challenges_team_a_id_fkey(id, name, creator_id), team_b:teams!challenges_team_b_id_fkey(id, name, creator_id)")
-      .order("created_at", { ascending: false }).limit(30);
-    if (data) setChallenges(data);
-    const { data: parts } = await supabase.from("challenge_participations" as any).select("*");
-    if (parts) setParticipations(parts as any[]);
-  };
-
-  const handleLaunchChallenge = async () => {
-    if (!launchTeam || !user) return;
-    if (launchDistance > 10 || launchDistance < 1) {
-      toast.error("Distance entre 1 et 10 km");
+  const openCreate = () => {
+    if (Number(profile?.total_km || 0) < 101) {
+      toast.error("Rang GUERRIER DES PAVÉS III (101 km) requis pour créer un groupe.");
       return;
     }
-    if (launchReward < 0) {
-      toast.error("Mise invalide");
-      return;
-    }
-    setLaunching(true);
-    const endIso = launchEnd ? new Date(launchEnd).toISOString() : new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
-    const { error } = await supabase.rpc("start_team_challenge" as any, {
-      p_team_id: launchTeam.id,
-      p_distance_km: launchDistance,
-      p_stake_fp: launchReward,
-      p_end_date: endIso,
-    });
-    setLaunching(false);
-    if (error) { toast.error(error.message || "Erreur"); return; }
-    toast.success("Défi lancé ! Mise prélevée à chaque membre 🔒");
-    setLaunchTeam(null); setLaunchEnd("");
-    fetchChallenges();
+    setCreating(true); setGroupName(""); setSelected([]); setSearch(""); setResults([]);
   };
 
-  const myCaptainTeamsOfSize = (size: number) =>
-    teams.filter((t) => t.creator_id === user?.id && t.members.filter((m: any) => m.status === "accepted").length === size);
-
-  const handleAcceptChallenge = async () => {
-    if (!acceptChallenge || !acceptTeamId || !user) return;
-    setAccepting(true);
-    const { error } = await supabase.rpc("accept_team_challenge" as any, {
-      p_challenge_id: acceptChallenge.id,
-      p_team_id: acceptTeamId,
-    });
-    setAccepting(false);
-    if (error) { toast.error(error.message || "Erreur"); return; }
-    toast.success("Défi relevé ! 🔥");
-    setAcceptChallenge(null); setAcceptTeamId("");
-    fetchChallenges();
-  };
-
-  const startMyRun = (challenge: any) => {
-    sessionStorage.setItem("active_team_challenge", JSON.stringify({
-      id: challenge.id,
-      distance_km: challenge.distance_km,
-    }));
-    navigate("/activity");
-  };
-
-  const handleFinalize = async (challengeId: string) => {
-    const { error } = await supabase.rpc("finalize_team_challenge" as any, { p_challenge_id: challengeId });
-    if (error) { toast.error(error.message || "Impossible de finaliser"); return; }
-    toast.success("Défi finalisé 🏆");
-    fetchChallenges();
-  };
-
-  const myParticipation = (challengeId: string) =>
-    participations.find((p) => p.challenge_id === challengeId && p.user_id === user?.id);
-
-  const challengeProgress = (challenge: any) => {
-    const aDone = participations.filter(p => p.challenge_id === challenge.id && p.team_id === challenge.team_a?.id && p.completed).length;
-    const bDone = participations.filter(p => p.challenge_id === challenge.id && p.team_id === challenge.team_b?.id && p.completed).length;
-    return { aDone, bDone };
-  };
-
-  const fetchFollowers = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("followers").select("follower_id").eq("following_id", user.id);
-    if (data && data.length > 0) {
-      const ids = data.map(f => f.follower_id);
-      const { data: profiles } = await supabase
-        .from("profiles").select("user_id, username, avatar_url").in("user_id", ids);
-      setFollowers(profiles || []);
-    }
-  };
-
-  const searchUsers = async (query: string) => {
-    setInviteSearch(query);
-    if (query.length < 2) { setSearchResults([]); return; }
-    const { data } = await supabase
-      .from("profiles").select("user_id, username, avatar_url")
-      .ilike("username", `%${query}%`).neq("user_id", user?.id || "").limit(10);
-    setSearchResults(data || []);
-  };
-
-  const toggleMember = (profile: any) => {
-    setSelectedMembers(prev => {
-      const exists = prev.find(m => m.user_id === profile.user_id);
-      if (exists) return prev.filter(m => m.user_id !== profile.user_id);
-      if (prev.length >= teamSize - 1) { toast.error(`Max ${teamSize - 1} membres en plus`); return prev; }
-      return [...prev, profile];
-    });
-  };
-
-  const handleCreateTeam = async () => {
-    if (!teamName.trim() || !user) return;
-    // Vérifier le rang côté client (GUERRIER DES PAVÉS III = 101 km)
-    const { data: prof } = await supabase.from("profiles").select("total_km").eq("user_id", user.id).maybeSingle();
-    if (!prof || Number(prof.total_km || 0) < 101) {
-      toast.error("Il faut atteindre le rang GUERRIER DES PAVÉS III (101 km) pour créer une équipe.");
-      return;
-    }
-    setCreating(true);
-    const { data: team, error } = await supabase.from("teams").insert({ name: teamName.trim(), creator_id: user.id }).select().single();
-    if (error) {
-      const msg = error.message?.includes("TEAM_LEVEL_REQUIRED")
-        ? "Rang GUERRIER DES PAVÉS III requis pour créer une équipe."
-        : "Erreur lors de la création";
-      toast.error(msg); setCreating(false); return;
-    }
-
-    // Add creator
-    await supabase.from("team_members").insert({ team_id: team.id, user_id: user.id, invited_by: user.id, status: "accepted" });
-
-    // Invite selected members
-    for (const member of selectedMembers) {
-      await supabase.from("team_members").insert({
-        team_id: team.id, user_id: member.user_id, invited_by: user.id, status: "invited",
-      });
-    }
-
-    // If dates are set, create a challenge directly
-    if (startDate && endDate) {
-      // Create a placeholder opponent team
-      const { data: opponentTeam } = await supabase
-        .from("teams").insert({ name: `Adversaire de ${teamName.trim()}`, creator_id: user.id }).select().single();
-      if (opponentTeam) {
-        await supabase.from("challenges").insert({
-          team_a_id: team.id,
-          team_b_id: opponentTeam.id,
-          distance_km: 5,
-          status: "active" as any,
-          start_date: new Date(startDate).toISOString(),
-          end_date: new Date(endDate).toISOString(),
-          max_members: teamSize,
-        });
-      }
-    }
-
-    toast.success("Équipe créée ! 🔥");
-    setTeamName(""); setView("list"); setCreating(false);
-    setSelectedMembers([]); setStartDate(""); setEndDate("");
-    fetchTeams(); fetchChallenges();
-  };
-
-  const handleJoinChallenge = async (challenge: any) => {
-    if (!user) return;
-    setJoiningChallenge(challenge.id);
-    const teamAId = challenge.team_a?.id;
-    const teamBId = challenge.team_b?.id;
-    const { data: existingMembership } = await supabase
-      .from("team_members").select("id").eq("user_id", user.id)
-      .in("team_id", [teamAId, teamBId].filter(Boolean));
-    if (existingMembership && existingMembership.length > 0) {
-      toast.error("Tu fais déjà partie de ce défi !"); setJoiningChallenge(null); return;
-    }
-    const maxMembers = challenge.max_members || 5;
-    for (const teamId of [teamAId, teamBId]) {
-      if (!teamId) continue;
-      const { count } = await supabase
-        .from("team_members").select("id", { count: "exact", head: true })
-        .eq("team_id", teamId).eq("status", "accepted");
-      if ((count || 0) < maxMembers) {
-        const { error } = await supabase.from("team_members").insert({
-          team_id: teamId, user_id: user.id, invited_by: user.id, status: "accepted",
-        });
-        if (error) { toast.error("Erreur pour rejoindre"); } else {
-          toast.success("Tu as rejoint le défi ! 🔥"); fetchChallenges(); fetchTeams();
-        }
-        setJoiningChallenge(null); return;
-      }
-    }
-    toast.error("Plus de place dans ce défi"); setJoiningChallenge(null);
-  };
-
-  const isUserInChallenge = (challenge: any) => {
-    if (!user) return false;
-    return teams.some(t => t.id === challenge.team_a?.id || t.id === challenge.team_b?.id);
-  };
-
-  const handleDeleteTeam = async (team: any) => {
-    if (!user || team.creator_id !== user.id) {
-      toast.error("Seul le créateur peut supprimer l'équipe");
-      return;
-    }
-    if (!confirm(`Supprimer l'équipe "${team.name}" ?`)) return;
-    await supabase.from("team_members").delete().eq("team_id", team.id);
-    const { error } = await supabase.from("teams").delete().eq("id", team.id);
-    if (error) {
-      toast.error("Erreur lors de la suppression");
-    } else {
-      toast.success("Équipe supprimée");
-      fetchTeams();
-      fetchChallenges();
-    }
-  };
-
-  const searchMembersToAdd = async (query: string) => {
-    setMemberSearch(query);
-    if (query.length < 2 || !user) { setMemberResults([]); return; }
-    const existingIds = (addMemberTeam?.members || []).map((m: any) => m.user_id);
-    const { data } = await supabase
-      .from("profiles").select("user_id, username, avatar_url")
-      .ilike("username", `%${query}%`).neq("user_id", user.id).limit(10);
-    setMemberResults((data || []).filter((p: any) => !existingIds.includes(p.user_id)));
-  };
-
-  const handleAddMember = async (profile: any) => {
-    if (!addMemberTeam || !user) return;
-    const { error } = await supabase.from("team_members").insert({
-      team_id: addMemberTeam.id,
-      user_id: profile.user_id,
-      invited_by: user.id,
-      status: "invited",
-    });
-    if (error) {
-      toast.error("Erreur lors de l'ajout");
-    } else {
-      toast.success(`${profile.username} invité(e) ! 🔥`);
-      setMemberResults((prev) => prev.filter((p) => p.user_id !== profile.user_id));
-      fetchTeams();
-    }
-  };
-
-  const openChallenges = challenges.filter((c) => c.status === "open");
-  const activeChallenges = challenges.filter((c) => c.status === "active");
-  const completedChallenges = challenges.filter((c) => c.status === "completed");
-
-  const stats = {
-    open: openChallenges.length,
-    active: activeChallenges.length,
-    won: completedChallenges.filter((c) =>
-      teams.some((t) => t.id === c.winner_team_id)
-    ).length,
-    teams: teams.length,
-  };
+  const pending = challenges.filter((c) => c.status === "pending");
+  const received = pending.filter((c) => c.team_b.creator_id === user?.id);
+  const sentOrWaiting = pending.filter((c) => c.team_b.creator_id !== user?.id);
+  const active = challenges.filter((c) => c.status === "active");
+  const done = challenges.filter((c) => c.status === "completed");
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-lg mx-auto">
-      {/* HEADER */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center neon-glow">
-            <Swords className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="font-display font-black text-2xl leading-none">Arène des Défis</h1>
-            <p className="text-xs text-muted-foreground mt-1">Affronte, gagne, domine.</p>
-          </div>
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center neon-glow">
+          <Swords className="w-5 h-5 text-primary-foreground" />
         </div>
-      </motion.div>
+        <div>
+          <h1 className="font-display font-black text-2xl leading-none">Arène des Défis</h1>
+          <p className="text-xs text-muted-foreground mt-1">1V1 et Groupe vs Groupe.</p>
+        </div>
+      </div>
 
-      {/* STATS OVERVIEW */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="grid grid-cols-4 gap-2 mb-5"
-      >
-        {[
-          { label: "Ouverts", value: stats.open, icon: Rocket, color: "text-accent" },
-          { label: "En cours", value: stats.active, icon: Play, color: "text-primary" },
-          { label: "Gagnés", value: stats.won, icon: Trophy, color: "text-primary" },
-          { label: "Équipes", value: stats.teams, icon: Users, color: "text-foreground" },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="rounded-xl bg-card border border-border p-2.5 text-center">
-            <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
-            <p className="font-display font-black text-lg leading-none">{value}</p>
-            <p className="text-[9px] uppercase tracking-wide text-muted-foreground mt-1">{label}</p>
-          </div>
-        ))}
-      </motion.div>
-
-      {/* TABS */}
       <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-secondary/50 border border-border">
-        {([
-          { id: "defis" as Tab, label: "Défis", icon: Swords },
-          { id: "equipes" as Tab, label: "Équipes", icon: Users },
-        ]).map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => { setTab(id); setView("list"); }}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              tab === id ? "gradient-primary text-primary-foreground neon-glow" : "text-muted-foreground hover:text-foreground"
-            }`}>
+        {([{ id: "defis" as Tab, label: "Défis", icon: Swords }, { id: "groupes" as Tab, label: "Groupes", icon: Users }]).map(({ id, label, icon: Icon }) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === id ? "gradient-primary text-primary-foreground neon-glow" : "text-muted-foreground"}`}>
             <Icon className="w-4 h-4" /> {label}
+            {id === "defis" && received.length > 0 && <span className="ml-1 text-[10px] px-1.5 rounded-full bg-destructive text-destructive-foreground">{received.length}</span>}
           </button>
         ))}
       </div>
 
-      <AnimatePresence mode="wait">
-        {tab === "defis" && (
-          <motion.div key="defis" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-            <DuelsPanel />
+      {tab === "defis" && (
+        <div className="space-y-5">
+          <DuelsPanel />
 
-            <motion.button whileTap={{ scale: 0.97 }} onClick={() => setTab("equipes")} className="w-full rounded-2xl gradient-accent p-5 flex items-center gap-4 accent-glow">
-
-              <Rocket className="w-8 h-8 text-accent-foreground" />
-              <div className="text-left">
-                <p className="font-display font-bold text-lg text-accent-foreground">LANCER UN DÉFI</p>
-                <p className="text-xs text-accent-foreground/70">Depuis l'onglet Équipes, choisis ton équipe</p>
-              </div>
-            </motion.button>
-
-            {/* OPEN CHALLENGES — can be accepted */}
-            {openChallenges.length > 0 && (
-              <>
-                <h3 className="font-display font-bold text-sm text-accent mt-6">DÉFIS OUVERTS À RELEVER</h3>
-                {openChallenges.map((ch) => {
-                  const isMine = ch.team_a?.creator_id === user?.id;
-                  const sizeA = teams.find(t => t.id === ch.team_a?.id)?.members.filter((m: any) => m.status === "accepted").length
-                    ?? ch.max_members;
-                  return (
-                    <div key={ch.id} className="rounded-2xl bg-card border border-accent/30 p-4 accent-glow space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-display font-bold text-sm">{ch.team_a?.name}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent font-bold">EN ATTENTE</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div className="flex items-center gap-1 text-muted-foreground"><Shield className="w-3 h-3" />{ch.distance_km} km</div>
-                        <div className="flex items-center gap-1 text-accent"><Trophy className="w-3 h-3" />Mise {ch.stake_fp ?? 0} FP/membre</div>
-                        <div className="flex items-center gap-1 text-primary">🔒 Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</div>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">Équipe : {sizeA}v{sizeA}</div>
-                      {ch.end_date && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
-                          <Calendar className="w-3 h-3" />
-                          <span>Fin : {format(new Date(ch.end_date), "dd MMM yyyy", { locale: fr })}</span>
-                        </div>
-                      )}
-                      {!isMine && (
-                        <button
-                          onClick={() => { setAcceptChallenge({ ...ch, requiredSize: sizeA }); setAcceptTeamId(""); }}
-                          className="w-full rounded-xl gradient-primary py-2 text-sm font-bold text-primary-foreground flex items-center justify-center gap-2"
-                        >
-                          <Swords className="w-4 h-4" /> Relever le défi
-                        </button>
-                      )}
-                      {isMine && (
-                        <p className="text-xs text-muted-foreground text-center">En attente d'une équipe adverse de {sizeA} joueurs…</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            )}
-
-            <h3 className="font-display font-bold text-sm text-muted-foreground mt-6">DÉFIS EN COURS</h3>
-            {activeChallenges.length === 0 ? (
-              <div className="rounded-xl bg-card border border-border p-6 text-center">
-                <p className="text-sm text-muted-foreground">Aucun défi en cours</p>
-              </div>
-            ) : (
-              activeChallenges.map((ch) => {
-                const inA = teams.some(t => t.id === ch.team_a?.id);
-                const inB = teams.some(t => t.id === ch.team_b?.id);
-                const inThis = inA || inB;
-                const myPart = myParticipation(ch.id);
-                const { aDone, bDone } = challengeProgress(ch);
-                const sizeA = teams.find(t => t.id === ch.team_a?.id)?.members.filter((m: any) => m.status === "accepted").length ?? ch.max_members;
-                const sizeB = teams.find(t => t.id === ch.team_b?.id)?.members.filter((m: any) => m.status === "accepted").length ?? ch.max_members;
-                const allDone = aDone >= sizeA && bDone >= sizeB;
-                const isAnyCreator = ch.team_a?.creator_id === user?.id || ch.team_b?.creator_id === user?.id;
-                return (
-                  <div key={ch.id} className="rounded-2xl bg-card border border-primary/20 p-4 neon-glow space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Swords className="w-4 h-4 text-accent" />
-                        <span className="font-display font-bold text-sm">{ch.team_a?.name}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">vs</span>
-                      <span className="font-display font-bold text-sm">{ch.team_b?.name}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs flex-wrap gap-2">
-                      <span className="text-muted-foreground flex items-center gap-1"><Shield className="w-3 h-3" />{ch.distance_km} km</span>
-                      <span className="text-accent flex items-center gap-1">Mise {ch.stake_fp ?? 0} FP</span>
-                      <span className="text-primary flex items-center gap-1"><Trophy className="w-3 h-3" />Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
-                        <p className="text-muted-foreground">{ch.team_a?.name}</p>
-                        <p className="font-bold text-primary">{aDone}/{sizeA} terminé(s)</p>
-                      </div>
-                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
-                        <p className="text-muted-foreground">{ch.team_b?.name}</p>
-                        <p className="font-bold text-primary">{bDone}/{sizeB} terminé(s)</p>
-                      </div>
-                    </div>
-                    {ch.end_date && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
-                        <Calendar className="w-3 h-3" />
-                        <span>Fin : {format(new Date(ch.end_date), "dd MMM yyyy", { locale: fr })}</span>
-                      </div>
-                    )}
-                    {inThis && !myPart?.completed && (
-                      <button
-                        onClick={() => startMyRun(ch)}
-                        className="w-full rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground flex items-center justify-center gap-2 neon-glow"
-                      >
-                        <Play className="w-4 h-4" /> COMMENCER MA COURSE
-                      </button>
-                    )}
-                    {myPart?.completed && (
-                      <div className="rounded-xl bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary text-center flex items-center justify-center gap-2">
-                        <Check className="w-3 h-3" /> Tu as terminé : {(myPart.duration_seconds/60).toFixed(1)} min — {myPart.distance_km} km
-                      </div>
-                    )}
-                    {allDone && isAnyCreator && (
-                      <button
-                        onClick={() => handleFinalize(ch.id)}
-                        className="w-full rounded-xl bg-accent/20 border border-accent/40 py-2 text-sm font-bold text-accent flex items-center justify-center gap-2"
-                      >
-                        <Flag className="w-4 h-4" /> Finaliser le défi
-                      </button>
-                    )}
+          {received.length > 0 && (
+            <section className="space-y-3">
+              <h3 className="font-display font-bold text-sm text-accent">DÉFIS DE GROUPE REÇUS</h3>
+              {received.map((c) => (
+                <div key={c.id} className="rounded-2xl bg-card border border-accent/30 p-4 space-y-3">
+                  <p className="font-display font-bold">🏆 Nouveau défi de groupe</p>
+                  <p className="text-sm text-muted-foreground">
+                    Le groupe <span className="text-foreground font-bold">{c.team_a.name}</span> te propose un défi de <b className="text-foreground">{c.distance_km} km</b>.
+                    Mise : <b className="text-foreground">{c.stake_fp} FP par participant</b> · Durée {c.time_limit_hours} h.
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">La distance, la mise et les règles ne peuvent pas être modifiées. Les FP ne sont bloqués qu'à l'acceptation.</p>
+                  <div className="flex gap-2">
+                    <button disabled={busy} onClick={() => run(() => supabase.rpc("respond_group_challenge" as any, { p_challenge_id: c.id, p_accept: true }), "Défi accepté ! FP bloqués dans le coffre 🔒")}
+                      className="flex-1 rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50">ACCEPTER</button>
+                    <button disabled={busy} onClick={() => run(() => supabase.rpc("respond_group_challenge" as any, { p_challenge_id: c.id, p_accept: false }), "Défi refusé")}
+                      className="flex-1 rounded-xl bg-secondary py-2.5 text-sm font-bold disabled:opacity-50">REFUSER</button>
                   </div>
-                );
-              })
-            )}
+                </div>
+              ))}
+            </section>
+          )}
 
-            <h3 className="font-display font-bold text-sm text-muted-foreground mt-4">TERMINÉS</h3>
-            {completedChallenges.length === 0 ? (
-              <div className="rounded-xl bg-card border border-border p-6 text-center">
-                <p className="text-sm text-muted-foreground">Aucun défi terminé</p>
-              </div>
-            ) : (
-              completedChallenges.map((ch) => {
-                const winnerName = ch.winner_team_id === ch.team_a?.id ? ch.team_a?.name
-                  : ch.winner_team_id === ch.team_b?.id ? ch.team_b?.name : "Match nul";
-                const fmt = (s: number | null) => s ? `${(s/60).toFixed(2)} min` : "—";
-                return (
-                  <div key={ch.id} className="rounded-2xl bg-card border border-border p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-display font-bold text-sm">{ch.team_a?.name} vs {ch.team_b?.name}</span>
-                      <Trophy className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
-                        <p className="text-muted-foreground">{ch.team_a?.name}</p>
-                        <p className="font-bold">{fmt(ch.team_a_avg_time)}</p>
-                      </div>
-                      <div className="rounded-lg bg-secondary/40 px-2 py-1.5 text-center">
-                        <p className="text-muted-foreground">{ch.team_b?.name}</p>
-                        <p className="font-bold">{fmt(ch.team_b_avg_time)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{ch.distance_km} km · Mise {ch.stake_fp ?? 0} FP · Coffre {Number(ch.coffre_amount ?? 0).toFixed(0)} FP</span>
-                      <span className="text-primary font-bold">🏆 {winnerName}</span>
-                    </div>
+          {sentOrWaiting.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="font-display font-bold text-sm text-muted-foreground">PROPOSITIONS EN ATTENTE</h3>
+              {sentOrWaiting.map((c) => (
+                <div key={c.id} className="rounded-2xl bg-card border border-border p-3 text-sm">
+                  <p className="font-bold">{c.team_a.name} <span className="text-muted-foreground">vs</span> {c.team_b.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{c.distance_km} km · {c.stake_fp} FP / participant · en attente de réponse</p>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section className="space-y-3">
+            <h3 className="font-display font-bold text-sm text-muted-foreground">DÉFIS DE GROUPE EN COURS</h3>
+            {active.length === 0 ? (
+              <div className="rounded-xl bg-card border border-border p-5 text-center text-sm text-muted-foreground">Aucun défi de groupe en cours</div>
+            ) : active.map((c) => <ActiveCard key={c.id} c={c} userId={user?.id} onRun={() => {
+              sessionStorage.setItem("active_team_challenge", JSON.stringify({ id: c.id, distance_km: c.distance_km }));
+              navigate("/activity");
+            }} />)}
+          </section>
+
+          {done.length > 0 && (
+            <section className="space-y-3">
+              <h3 className="font-display font-bold text-sm text-muted-foreground">HISTORIQUE DES DÉFIS DE GROUPE</h3>
+              {done.map((c) => <ResultCard key={c.id} c={c} />)}
+            </section>
+          )}
+        </div>
+      )}
+
+      {tab === "groupes" && (
+        <div className="space-y-5">
+          {invites.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="font-display font-bold text-sm text-accent">INVITATIONS REÇUES</h3>
+              {invites.map((i) => (
+                <div key={i.id} className="rounded-2xl bg-card border border-accent/30 p-3 flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">{i.team?.name}</p>
+                    <p className="text-[11px] text-muted-foreground">Invité par {i.inviter || "un runner"}</p>
                   </div>
-                );
-              })
-            )}
-          </motion.div>
-        )}
+                  <button onClick={() => run(() => supabase.rpc("accept_team_invite" as any, { p_team_id: i.team_id }), "Tu as rejoint le groupe 🔥")}
+                    className="p-2 rounded-lg bg-primary/10 text-primary"><Check className="w-4 h-4" /></button>
+                  <button onClick={() => run(() => supabase.from("team_members").delete().eq("id", i.id) as any, "Invitation refusée")}
+                    className="p-2 rounded-lg bg-destructive/10 text-destructive"><X className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </section>
+          )}
 
-        {tab === "equipes" && view === "list" && (
-          <motion.div key="equipes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={async () => {
-                const km = Number((await supabase.from("profiles").select("total_km").eq("user_id", user!.id).maybeSingle()).data?.total_km || 0);
-                if (km < 101) {
-                  toast.error("Rang GUERRIER DES PAVÉS III (101 km) requis pour créer une équipe. Tu peux rejoindre une équipe existante ! 💪");
-                  return;
-                }
-                setView("create_team"); fetchFollowers();
-              }}
-              className="w-full rounded-2xl gradient-primary p-5 flex items-center gap-4 neon-glow-strong">
+          {!myGroup ? (
+            <button onClick={openCreate} className="w-full rounded-2xl gradient-primary p-5 flex items-center gap-4 neon-glow-strong">
               <Plus className="w-8 h-8 text-primary-foreground" />
               <div className="text-left">
-                <p className="font-display font-bold text-lg text-primary-foreground">CRÉER UNE ÉQUIPE</p>
-                <p className="text-xs text-primary-foreground/70">Rang GUERRIER DES PAVÉS III+ requis</p>
+                <p className="font-display font-bold text-lg text-primary-foreground">CRÉER UN GROUPE</p>
+                <p className="text-xs text-primary-foreground/70">2 à 5 participants · GUERRIER DES PAVÉS III+ · valable 7 jours</p>
               </div>
-            </motion.button>
-
-            {pendingInvites.length > 0 && (
-              <>
-                <h3 className="font-display font-bold text-sm text-accent">INVITATIONS REÇUES ({pendingInvites.length})</h3>
-                {pendingInvites.map((inv) => (
-                  <div key={inv.id} className="rounded-2xl bg-card border border-accent/30 p-4 accent-glow space-y-3">
-                    <div>
-                      <p className="font-display font-bold text-sm">{inv.team_name || "Équipe"}</p>
-                      <p className="text-xs text-muted-foreground">Invité par {inv.inviter_name || "un runner"}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => respondInvite(inv.id, true, inv.team_id)}
-                        className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
-                      >
-                        <Check className="w-3 h-3" /> Accepter
-                      </button>
-                      <button
-                        onClick={() => respondInvite(inv.id, false)}
-                        className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive"
-                      >
-                        <X className="w-3 h-3" /> Refuser
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            <h3 className="font-display font-bold text-sm text-muted-foreground">MES ÉQUIPES</h3>
-            {teams.length === 0 ? (
-              <div className="rounded-xl bg-card border border-border p-6 text-center">
-                <p className="text-sm text-muted-foreground">Aucune équipe</p>
-                <p className="text-xs text-muted-foreground mt-1">Crée ta première équipe !</p>
-              </div>
-            ) : (
-              teams.map((team) => {
-                const isCreator = user?.id === team.creator_id;
-                return (
-                  <div key={team.id} className="rounded-2xl bg-card border border-border p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-display font-bold">{team.name}</p>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                        {team.members.filter((m: any) => m.status === "accepted").length} membres
-                      </span>
-                    </div>
-                    <div className="flex gap-1 mb-3">
-                      {team.members.filter((m: any) => m.status === "accepted").map((m: any, j: number) => (
-                        <div key={j} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">👤</div>
-                      ))}
-                    </div>
-                    {isCreator && (
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => { setLaunchTeam(team); setLaunchDistance(5); setLaunchReward(5); setLaunchEnd(""); }}
-                          className="w-full flex items-center justify-center gap-1 rounded-lg gradient-primary py-2 text-xs font-bold text-primary-foreground neon-glow"
-                        >
-                          <Rocket className="w-3 h-3" /> Lancer un défi avec cette équipe
-                        </button>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => { setAddMemberTeam(team); setMemberSearch(""); setMemberResults([]); }}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary"
-                          >
-                            <UserPlus className="w-3 h-3" /> Ajouter
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTeam(team)}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive"
-                          >
-                            <Trash2 className="w-3 h-3" /> Supprimer
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </motion.div>
-        )}
-
-        {tab === "equipes" && view === "create_team" && (
-          <motion.div key="create_team" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
-            <button onClick={() => setView("list")} className="text-sm text-muted-foreground mb-2">← Retour</button>
-            <div className="rounded-2xl bg-card border border-border p-6 space-y-4">
-              <h2 className="font-display font-bold text-xl">Nouvelle équipe</h2>
-
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Nom de l'équipe</label>
-                <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ex: Les Freaks 🔥"
-                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-
-              <div>
-                <label className="text-xs text-muted-foreground mb-2 block">Taille de l'équipe</label>
-                <div className="flex gap-2">
-                  {[2, 3, 4, 5].map((size) => (
-                    <button key={size} onClick={() => setTeamSize(size)}
-                      className={`flex-1 py-3 rounded-xl font-display font-bold text-lg transition-all ${
-                        teamSize === size ? "gradient-primary text-primary-foreground neon-glow" : "bg-secondary text-secondary-foreground"
-                      }`}>{size}v{size}</button>
-                  ))}
+            </button>
+          ) : (
+            <section className="rounded-2xl bg-card border border-primary/25 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-display font-black text-lg truncate">{myGroup.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{acceptedCount}/5 participants</p>
                 </div>
+                <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${myGroup.status === "in_challenge" ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"}`}>
+                  {myGroup.status === "in_challenge" ? "DÉFI EN COURS" : "EN ATTENTE DE DÉFI"}
+                </span>
               </div>
-
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Date de début</label>
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-xl bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Date de fin</label>
-                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-xl bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
-                </div>
-              </div>
-
-              {/* Invite Members */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Inviter des membres</label>
-                <input type="text" value={inviteSearch} onChange={(e) => searchUsers(e.target.value)}
-                  placeholder="Rechercher un utilisateur..."
-                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary mb-2" />
-
-                {/* Search results */}
-                {searchResults.length > 0 && (
-                  <div className="rounded-xl bg-secondary/50 border border-border p-2 space-y-1 mb-2 max-h-32 overflow-y-auto">
-                    {searchResults.map((p) => (
-                      <button key={p.user_id} onClick={() => toggleMember(p)}
-                        className={`w-full flex items-center gap-2 p-2 rounded-lg text-left text-sm transition-colors ${
-                          selectedMembers.find(m => m.user_id === p.user_id) ? "bg-primary/20" : "hover:bg-secondary"
-                        }`}>
-                        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold overflow-hidden">
-                          {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : p.username[0]}
-                        </div>
-                        <span className="flex-1">{p.username}</span>
-                        {selectedMembers.find(m => m.user_id === p.user_id) && <Check className="w-4 h-4 text-primary" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Followers toggle */}
-                <button onClick={() => setShowFollowers(!showFollowers)}
-                  className="text-xs text-primary font-bold flex items-center gap-1">
-                  <Users className="w-3 h-3" /> {showFollowers ? "Masquer" : "Voir"} mes abonnés ({followers.length})
-                </button>
-
-                {showFollowers && followers.length > 0 && (
-                  <div className="rounded-xl bg-secondary/50 border border-border p-2 space-y-1 mt-2 max-h-32 overflow-y-auto">
-                    {followers.map((p) => (
-                      <button key={p.user_id} onClick={() => toggleMember(p)}
-                        className={`w-full flex items-center gap-2 p-2 rounded-lg text-left text-sm transition-colors ${
-                          selectedMembers.find(m => m.user_id === p.user_id) ? "bg-primary/20" : "hover:bg-secondary"
-                        }`}>
-                        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold overflow-hidden">
-                          {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : p.username[0]}
-                        </div>
-                        <span className="flex-1">{p.username}</span>
-                        {selectedMembers.find(m => m.user_id === p.user_id) && <Check className="w-4 h-4 text-primary" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Selected members */}
-                {selectedMembers.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {selectedMembers.map((m) => (
-                      <span key={m.user_id} className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-xs text-primary font-bold">
-                        {m.username}
-                        <button onClick={() => toggleMember(m)}><X className="w-3 h-3" /></button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <motion.button whileTap={{ scale: 0.97 }} onClick={handleCreateTeam} disabled={creating || !teamName.trim()}
-                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50">
-                {creating ? "Création..." : "CRÉER L'ÉQUIPE"}
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Add member dialog */}
-      <AnimatePresence>
-        {addMemberTeam && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-            onClick={() => setAddMemberTeam(null)}
-          >
-            <motion.div
-              initial={{ y: 40 }}
-              animate={{ y: 0 }}
-              exit={{ y: 40 }}
-              className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-3"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold">Inviter dans {addMemberTeam.name}</h3>
-                <button onClick={() => setAddMemberTeam(null)}><X className="w-4 h-4" /></button>
-              </div>
-              <input
-                type="text"
-                value={memberSearch}
-                onChange={(e) => searchMembersToAdd(e.target.value)}
-                placeholder="Rechercher un utilisateur..."
-                className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm"
-              />
-              <div className="max-h-60 overflow-y-auto space-y-1">
-                {memberResults.length === 0 && memberSearch.length >= 2 && (
-                  <p className="text-xs text-muted-foreground text-center py-3">Aucun résultat</p>
-                )}
-                {memberResults.map((p) => (
-                  <button
-                    key={p.user_id}
-                    onClick={() => handleAddMember(p)}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-secondary text-left"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold overflow-hidden">
-                      {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : p.username[0]}
-                    </div>
-                    <span className="flex-1 text-sm">{p.username}</span>
-                    <UserPlus className="w-4 h-4 text-primary" />
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Launch challenge dialog */}
-      <AnimatePresence>
-        {launchTeam && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-            onClick={() => setLaunchTeam(null)}>
-            <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
-              className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-4"
-              onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold">Lancer un défi — {launchTeam.name}</h3>
-                <button onClick={() => setLaunchTeam(null)}><X className="w-4 h-4" /></button>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Distance (km, max 10)</label>
-                <div className="flex gap-2">
-                  {[3, 5, 7, 10].map((d) => (
-                    <button key={d} onClick={() => setLaunchDistance(d)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-bold ${launchDistance === d ? "gradient-primary text-primary-foreground" : "bg-secondary"}`}>
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Mise FP par membre (obligatoire pour participer)</label>
-                <input type="number" min={0} max={500} value={launchReward} onChange={(e) => setLaunchReward(Number(e.target.value))}
-                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Chaque membre de ton équipe doit avoir au moins {launchReward} FP. Total coffre côté A : {launchReward * (launchTeam.members?.filter((m: any) => m.status === "accepted").length || 0)} FP
-                </p>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Date de fin</label>
-                <input type="date" value={launchEnd} onChange={(e) => setLaunchEnd(e.target.value)}
-                  className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
-              </div>
-              <button onClick={handleLaunchChallenge} disabled={launching}
-                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50">
-                {launching ? "Lancement…" : "LANCER LE DÉFI ⚔️"}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Accept challenge dialog */}
-      <AnimatePresence>
-        {acceptChallenge && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-            onClick={() => setAcceptChallenge(null)}>
-            <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
-              className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-4"
-              onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold">Relever le défi</h3>
-                <button onClick={() => setAcceptChallenge(null)}><X className="w-4 h-4" /></button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Choisis ton équipe ({acceptChallenge.requiredSize} joueurs requis) — {acceptChallenge.distance_km} km · Mise {acceptChallenge.stake_fp ?? 0} FP/membre · Coffre actuel {Number(acceptChallenge.coffre_amount ?? 0).toFixed(0)} FP
-              </p>
-              {myCaptainTeamsOfSize(acceptChallenge.requiredSize).length === 0 ? (
-                <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive">
-                  Aucune de tes équipes n'a {acceptChallenge.requiredSize} membres acceptés. Crée ou complète une équipe.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {myCaptainTeamsOfSize(acceptChallenge.requiredSize).map((t) => (
-                    <button key={t.id} onClick={() => setAcceptTeamId(t.id)}
-                      className={`w-full p-3 rounded-xl border text-left transition-colors ${acceptTeamId === t.id ? "border-primary bg-primary/10" : "border-border bg-secondary"}`}>
-                      <p className="font-bold text-sm">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.members.filter((m: any) => m.status === "accepted").length} membres</p>
-                    </button>
-                  ))}
+              {myGroup.status === "waiting" && (
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground bg-secondary/50 rounded-lg px-3 py-1.5">
+                  <Clock className="w-3 h-3" /> Expire dans <Remaining target={myGroup.expires_at} />
                 </div>
               )}
-              <button onClick={handleAcceptChallenge} disabled={accepting || !acceptTeamId}
-                className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground neon-glow disabled:opacity-50">
-                {accepting ? "Acceptation…" : "RELEVER LE DÉFI 🔥"}
-              </button>
-            </motion.div>
-          </motion.div>
+              <div className="space-y-1.5">
+                {myGroup.members.map((m: any) => (
+                  <div key={m.user_id} className="flex items-center gap-2 text-sm">
+                    <Avatar m={m} />
+                    <span className="flex-1 truncate">{m.username}{m.user_id === myGroup.creator_id && <Crown className="inline w-3 h-3 ml-1 text-accent" />}</span>
+                    <span className="text-[10px] text-muted-foreground">{m.status === "invited" ? "Invité" : `${Number(m.total_fp || 0).toFixed(1)} FP`}</span>
+                  </div>
+                ))}
+              </div>
+              {isCreator && myGroup.status === "waiting" && (
+                <div className="flex gap-2">
+                  {myGroup.members.length < 5 && (
+                    <button onClick={() => { setInviteFor(myGroup); setSearch(""); setResults([]); }}
+                      className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary">
+                      <UserPlus className="w-3 h-3" /> Inviter
+                    </button>
+                  )}
+                  <button onClick={() => { if (confirm(`Supprimer le groupe « ${myGroup.name} » ?`)) run(() => supabase.rpc("delete_group" as any, { p_team_id: myGroup.id }), "Groupe supprimé"); }}
+                    className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-destructive/10 border border-destructive/30 py-2 text-xs font-bold text-destructive">
+                    <Trash2 className="w-3 h-3" /> Supprimer
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+
+          {myGroup && myGroup.status === "waiting" && (
+            <section className="space-y-2">
+              <h3 className="font-display font-bold text-sm text-muted-foreground">GROUPES À DÉFIER</h3>
+              {available.length === 0 ? (
+                <div className="rounded-xl bg-card border border-border p-5 text-center text-sm text-muted-foreground">Aucun groupe disponible pour le moment</div>
+              ) : available.map((g) => (
+                <div key={g.id} className="rounded-2xl bg-card border border-border p-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">{g.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{g.size} participants · créé par {g.creator_username}</p>
+                  </div>
+                  {isCreator && (
+                    <button onClick={() => { setTarget(g); setDist(10); setStake(10); setHours(72); }}
+                      className="rounded-xl gradient-accent px-3 py-2 text-xs font-bold text-accent-foreground">DÉFIER</button>
+                  )}
+                </div>
+              ))}
+              {!isCreator && <p className="text-[11px] text-muted-foreground">Seul le créateur du groupe peut lancer un défi.</p>}
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* Créer un groupe */}
+      <Sheet open={creating} onClose={() => setCreating(false)} title="Nouveau groupe">
+        <input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Nom du groupe"
+          className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
+        <input value={search} onChange={(e) => searchUsers(e.target.value, selected.map((s) => s.user_id))} placeholder="Inviter un runner (username)"
+          className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
+        <UserList list={results} onPick={(p) => {
+          if (selected.length >= 4) { toast.error("5 participants maximum"); return; }
+          setSelected([...selected, p]); setResults(results.filter((r) => r.user_id !== p.user_id));
+        }} />
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {selected.map((m) => (
+              <span key={m.user_id} className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-xs text-primary font-bold">
+                {m.username}<button onClick={() => setSelected(selected.filter((s) => s.user_id !== m.user_id))}><X className="w-3 h-3" /></button>
+              </span>
+            ))}
+          </div>
         )}
-      </AnimatePresence>
+        <p className="text-[11px] text-muted-foreground">Tu es automatiquement membre. Le groupe reste disponible 7 jours pour recevoir ou lancer un défi.</p>
+        <button disabled={busy || !groupName.trim()}
+          onClick={async () => { const ok = await run(() => supabase.rpc("create_group" as any, { p_name: groupName, p_invitees: selected.map((s) => s.user_id) }), "Groupe créé 🔥"); if (ok) setCreating(false); }}
+          className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground disabled:opacity-50">CRÉER LE GROUPE</button>
+      </Sheet>
+
+      {/* Inviter */}
+      <Sheet open={!!inviteFor} onClose={() => setInviteFor(null)} title={`Inviter dans ${inviteFor?.name || ""}`}>
+        <input value={search} onChange={(e) => searchUsers(e.target.value, (inviteFor?.members || []).map((m: any) => m.user_id))} placeholder="Rechercher un username"
+          className="w-full rounded-xl bg-secondary border border-border px-4 py-3 text-sm" />
+        <UserList list={results} onPick={async (p) => {
+          const ok = await run(() => supabase.rpc("invite_to_group" as any, { p_team_id: inviteFor.id, p_user_id: p.user_id }), `${p.username} invité(e)`);
+          if (ok) setInviteFor(null);
+        }} />
+      </Sheet>
+
+      {/* Proposer un défi */}
+      <Sheet open={!!target} onClose={() => setTarget(null)} title={`Défier ${target?.name || ""}`}>
+        <Chips label="Distance" items={DISTANCES.map((d) => ({ v: d, l: `${d} km` }))} value={dist} onChange={setDist} />
+        <Chips label="Mise par participant" items={STAKES.map((s) => ({ v: s, l: `${s} FP` }))} value={stake} onChange={setStake} />
+        <Chips label="Durée du défi" items={DURATIONS.map((d) => ({ v: d.h, l: d.label }))} value={hours} onChange={setHours} />
+        <div className="rounded-xl bg-secondary/50 border border-border p-3 text-[11px] text-muted-foreground space-y-1">
+          <p>Coffre estimé : <b className="text-primary">{stake * (acceptedCount + (target?.size || 0))} FP</b> ({acceptedCount} + {target?.size || 0} participants × {stake} FP)</p>
+          <p>Aucun FP n'est retiré tant que l'autre groupe n'a pas accepté. La plus petite moyenne de temps gagne.</p>
+        </div>
+        <button disabled={busy}
+          onClick={async () => { const ok = await run(() => supabase.rpc("propose_group_challenge" as any, { p_my_team: myGroup.id, p_target_team: target.id, p_distance_km: dist, p_stake_fp: stake, p_hours: hours }), "Défi envoyé ⚔️"); if (ok) setTarget(null); }}
+          className="w-full rounded-xl gradient-primary py-3 font-display font-bold text-primary-foreground disabled:opacity-50">ENVOYER LE DÉFI</button>
+      </Sheet>
+    </div>
+  );
+}
+
+function ActiveCard({ c, userId, onRun }: { c: GroupChallenge; userId?: string; onRun: () => void }) {
+  const avgA = groupAverage(c.members_a), avgB = groupAverage(c.members_b);
+  const me = [...c.members_a, ...c.members_b].find((m) => m.user_id === userId);
+  const leader = avgA == null && avgB == null ? null : avgB == null || (avgA != null && avgA < avgB) ? "a" : avgA == null || avgB < avgA ? "b" : "tie";
+  return (
+    <div className="rounded-2xl bg-card border border-primary/20 p-4 space-y-3">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Distance cible <b className="text-foreground">{c.distance_km} km</b></span>
+        <span className="flex items-center gap-1 text-primary font-bold"><Lock className="w-3 h-3" /> Coffre {Number(c.coffre_amount).toFixed(0)} FP</span>
+      </div>
+      <div className="flex items-center gap-2 rounded-xl bg-background/50 border border-border px-3 py-2 text-[11px]">
+        <Timer className="w-4 h-4 text-accent" /> Temps restant <span className="ml-auto text-sm"><Remaining target={c.end_date} /></span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <TeamColumn name={c.team_a.name} members={c.members_a} avg={avgA} target={c.distance_km} lead={leader === "a"} />
+        <TeamColumn name={c.team_b.name} members={c.members_b} avg={avgB} target={c.distance_km} lead={leader === "b"} />
+      </div>
+      <p className="text-[11px] text-center text-muted-foreground">
+        {leader === null ? "Aucun temps final pour l'instant" : leader === "tie" ? "Égalité provisoire" : `En tête : ${leader === "a" ? c.team_a.name : c.team_b.name} (provisoire)`}
+      </p>
+      {me && !me.completed && (
+        <button onClick={onRun} className="w-full rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground flex items-center justify-center gap-2 neon-glow">
+          <Play className="w-4 h-4" /> COURIR {c.distance_km} KM
+        </button>
+      )}
+      {me?.completed && (
+        <div className="rounded-xl bg-primary/10 border border-primary/30 py-2 text-xs font-bold text-primary text-center">
+          <Check className="inline w-3 h-3" /> Ton temps final : {fmtTime(me.duration_seconds)} (verrouillé)
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamColumn({ name, members, avg, target, lead }: { name: string; members: Member[]; avg: number | null; target: number; lead: boolean }) {
+  return (
+    <div className={`rounded-xl border p-2.5 space-y-2 ${lead ? "border-primary/40 bg-primary/[0.06]" : "border-border bg-secondary/30"}`}>
+      <p className="font-display font-bold text-xs truncate">{name}</p>
+      <div>
+        <p className="text-[9px] uppercase text-muted-foreground">Moyenne</p>
+        <p className="font-display font-black text-sm">{avg == null ? "—" : fmtTime(avg)}</p>
+      </div>
+      {members.map((m) => {
+        const pct = m.completed ? 100 : Math.min(100, (Number(m.distance_km || 0) / target) * 100);
+        return (
+          <div key={m.user_id} className="space-y-0.5">
+            <div className="flex items-center justify-between text-[10px] gap-1">
+              <span className="truncate">{m.username}</span>
+              <span className={m.completed ? "text-primary font-bold" : "text-muted-foreground"}>{m.completed ? fmtTime(m.duration_seconds) : "En cours"}</span>
+            </div>
+            <div className="h-1 rounded-full bg-secondary overflow-hidden"><div className="h-full bg-primary" style={{ width: `${pct}%` }} /></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ResultCard({ c }: { c: GroupChallenge }) {
+  const winnerName = c.is_tie ? null : c.winner_team_id === c.team_a.id ? c.team_a.name : c.team_b.name;
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-card border border-border p-4 space-y-3">
+      <div className="flex items-center gap-3">
+        <motion.div initial={{ rotate: -12, scale: 0.8 }} animate={{ rotate: 0, scale: 1 }} transition={{ type: "spring", stiffness: 200 }}
+          className="w-11 h-11 rounded-xl bg-accent/15 flex items-center justify-center text-xl">{c.is_tie ? "🤝" : "🏆"}</motion.div>
+        <div className="min-w-0">
+          <p className="font-display font-bold text-sm truncate">{c.team_a.name} vs {c.team_b.name}</p>
+          <p className="text-[11px] text-muted-foreground">{c.distance_km} km · {c.stake_fp} FP / participant</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        {[{ n: c.team_a.name, a: c.avg_a, w: c.winner_team_id === c.team_a.id }, { n: c.team_b.name, a: c.avg_b, w: c.winner_team_id === c.team_b.id }].map((t) => (
+          <div key={t.n} className={`rounded-lg px-2 py-1.5 text-center border ${t.w ? "border-primary/40 bg-primary/10" : "border-border bg-secondary/40"}`}>
+            <p className="text-muted-foreground truncate">{t.n}</p>
+            <p className="font-bold">{fmtTime(t.a)}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs font-bold text-center text-primary">
+        {c.is_tie ? "Égalité — mises remboursées" : `Victoire : ${winnerName} · coffre ouvert, ${Number(c.winner_reward).toFixed(0)} FP partagés`}
+      </p>
+    </motion.div>
+  );
+}
+
+function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+          <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-card border border-border p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-bold">{title}</h3>
+              <button onClick={onClose}><X className="w-4 h-4" /></button>
+            </div>
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function UserList({ list, onPick }: { list: any[]; onPick: (p: any) => void }) {
+  if (list.length === 0) return null;
+  return (
+    <div className="max-h-48 overflow-y-auto space-y-1 rounded-xl bg-secondary/40 p-1">
+      {list.map((p) => (
+        <button key={p.user_id} onClick={() => onPick(p)} className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-secondary text-left text-sm">
+          <Avatar m={p} /><span className="flex-1">{p.username}</span><UserPlus className="w-4 h-4 text-primary" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Chips({ label, items, value, onChange }: { label: string; items: { v: number; l: string }[]; value: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <div className="flex gap-2">
+        {items.map((i) => (
+          <button key={i.v} onClick={() => onChange(i.v)}
+            className={`flex-1 py-2 rounded-lg text-sm font-bold ${value === i.v ? "gradient-primary text-primary-foreground" : "bg-secondary"}`}>{i.l}</button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -489,7 +489,7 @@ export default function ActivityScreen() {
       // If this was a team-challenge run, submit the participation
       try {
         const raw = sessionStorage.getItem("active_team_challenge");
-        if (raw) {
+        if (raw && !result.isBlocked) {
           const ctx = JSON.parse(raw);
           if (ctx?.id) {
             await supabase.rpc("submit_team_challenge_run" as any, {
