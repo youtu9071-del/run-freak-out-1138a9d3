@@ -294,6 +294,7 @@ export type Database = {
       }
       duel_participations: {
         Row: {
+          activity_id: string | null
           attempt_status: string
           completed: boolean
           created_at: string
@@ -303,9 +304,11 @@ export type Database = {
           id: string
           invite_id: string
           started_at: string | null
+          threshold_reached_at: string | null
           user_id: string
         }
         Insert: {
+          activity_id?: string | null
           attempt_status?: string
           completed?: boolean
           created_at?: string
@@ -315,9 +318,11 @@ export type Database = {
           id?: string
           invite_id: string
           started_at?: string | null
+          threshold_reached_at?: string | null
           user_id: string
         }
         Update: {
+          activity_id?: string | null
           attempt_status?: string
           completed?: boolean
           created_at?: string
@@ -327,9 +332,17 @@ export type Database = {
           id?: string
           invite_id?: string
           started_at?: string | null
+          threshold_reached_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "duel_participations_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "user_activities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "duel_participations_invite_id_fkey"
             columns: ["invite_id"]
@@ -1219,6 +1232,20 @@ export type Database = {
       }
       current_season_start: { Args: never; Returns: string }
       delete_group: { Args: { p_team_id: string }; Returns: undefined }
+      duel_gps_result: {
+        Args: {
+          p_distance: number
+          p_points: Json
+          p_seconds: number
+          p_started_at: number
+          p_target: number
+        }
+        Returns: {
+          distance_km: number
+          duration_seconds: number
+          threshold_ms: number
+        }[]
+      }
       duel_level_stake: { Args: { p_level: string }; Returns: number }
       expire_duel_invites: { Args: never; Returns: undefined }
       expire_duels: { Args: never; Returns: undefined }
@@ -1227,6 +1254,15 @@ export type Database = {
       expire_team_challenges: { Args: never; Returns: undefined }
       finalize_duel: {
         Args: { p_invite_id: string; p_winner_id: string }
+        Returns: undefined
+      }
+      finalize_duel_activity: {
+        Args: {
+          p_activity_id: string
+          p_invite_id: string
+          p_run: Json
+          p_started_at: number
+        }
         Returns: undefined
       }
       finalize_duel_auto: { Args: { p_invite_id: string }; Returns: undefined }
