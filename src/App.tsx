@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import InstallPrompt from "@/components/InstallPrompt";
 import LevelTheme from "@/components/LevelTheme";
+import DuelSync from "@/components/DuelSync";
 
 import Dashboard from "./pages/Dashboard";
 import ActivityScreen from "./pages/ActivityScreen";
@@ -56,6 +57,7 @@ function AppRoutes() {
   return (
     <>
       <LevelTheme />
+      <DuelSync />
       <Routes>
 
         <Route path="/admin" element={<AdminDashboard />} />

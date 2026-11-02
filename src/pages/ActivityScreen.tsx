@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { lazy, Suspense } from "react";
 import { requestNotifPermission, showActivityNotification, hideActivityNotification } from "@/lib/activityNotification";
+import { readDuelContext, queueDuel, syncDuels, DUEL_CONTEXT_KEY } from "@/lib/duelSync";
 
 const ActivityMap = lazy(() => import("@/components/ActivityMap"));
 const RunShareCard = lazy(() => import("@/components/RunShareCard"));
@@ -43,6 +44,9 @@ export default function ActivityScreen() {
   const runStartRef = useRef<number | null>(null);
   const baseSecondsRef = useRef(0);
   const snapshotRef = useRef<any>(null);
+  const duelRef = useRef(readDuelContext());
+  const finishingRef = useRef(false);
+  const duelTraceRef = useRef<(GpsPoint & { duelCounted: boolean })[]>([]);
 
   // ─── Persistance de la course (reprise automatique après veille / fermeture) ───
   const RUN_KEY = "freakout_active_run";
@@ -172,6 +176,7 @@ export default function ActivityScreen() {
 
         const anchor = lastPointRef.current;
         if (!anchor) {
+          if (duelRef.current) duelTraceRef.current.push({ ...point, duelCounted: false });
           lastPointRef.current = point;
           setGpsPoints((prev) => [...prev, point]);
           return;
@@ -183,6 +188,7 @@ export default function ActivityScreen() {
 
         // 3) Saut de position irréaliste (téléportation / retour d'arrière-plan) : on recale sans compter
         if (speedKmh > 45 || (d > 0.25 && dt < 15)) {
+          if (duelRef.current) duelTraceRef.current.push({ ...point, duelCounted: false });
           lastPointRef.current = point;
           setGpsPoints((prev) => [...prev, point]);
           return;
@@ -193,6 +199,7 @@ export default function ActivityScreen() {
         const noiseKm = Math.min(0.012, Math.max(0.002, (acc * 0.6) / 1000));
 
         if (d >= noiseKm) {
+          if (duelRef.current) duelTraceRef.current.push({ ...point, duelCounted: true });
           setDistance((prev) => prev + d);
           const alert = analyzeGpsJump(anchor, point);
           if (alert) setLiveAlerts((prev) => [...prev.slice(-4), alert]);
@@ -356,6 +363,10 @@ export default function ActivityScreen() {
       setDistance(saved.distance || 0);
       setSteps(saved.steps || 0);
       const pts: GpsPoint[] = saved.gpsPoints || [];
+      if (saved.duel && saved.duel.userId === user?.id) {
+        duelRef.current = saved.duel;
+        duelTraceRef.current = saved.duelTrace || [];
+      }
       setGpsPoints(pts);
       if (pts.length) {
         lastPointRef.current = pts[pts.length - 1];
@@ -375,6 +386,7 @@ export default function ActivityScreen() {
         distance,
         steps,
         gpsPoints: gpsPoints.slice(-800),
+        ...(duelRef.current ? { duel: duelRef.current, duelTrace: duelTraceRef.current } : {}),
         savedAt: Date.now(),
       };
       snapshotRef.current = snap;
@@ -391,6 +403,10 @@ export default function ActivityScreen() {
     await requestNotifPermission();
     baseSecondsRef.current = 0;
     runStartRef.current = Date.now();
+    if (duelRef.current && user) {
+      duelRef.current = { ...duelRef.current, userId: user.id, startedAt: Date.now() };
+      localStorage.setItem(DUEL_CONTEXT_KEY, JSON.stringify(duelRef.current));
+    }
     setState("running");
     startGps();
   };
@@ -408,10 +424,18 @@ export default function ActivityScreen() {
   };
 
   const handleFinish = async () => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    const finalSeconds = runStartRef.current === null ? seconds : baseSecondsRef.current + Math.max(0, Math.floor((Date.now() - runStartRef.current) / 1000));
+    const duel = duelRef.current;
+    const duelRun = duel && user ? {
+      distance_km: distance, duration_seconds: finalSeconds,
+      gps_points: duelTraceRef.current.length ? duelTraceRef.current : gpsPoints,
+    } : null;
     hideActivityNotification();
     stopGps();
     setState("finished");
-    const speed = seconds > 2 && distance > 0 ? distance / (seconds / 3600) : 0;
+    const speed = finalSeconds > 2 && distance > 0 ? distance / (finalSeconds / 3600) : 0;
     // Pas cohérents : impossible de parcourir 1 km avec 0 pas → estimation GPS (~1250 pas/km)
     const finalSteps = Math.max(steps, distance >= 0.1 ? Math.round(distance * 1250) : 0);
     const result = analyzeSession(gpsPoints, finalSteps, distance, speed);
@@ -442,6 +466,15 @@ export default function ActivityScreen() {
     const fp = calculateFP(distance, finalSteps);
     const totalFp = result.isBlocked ? 0 : fp.totalFp;
     const cal = calculateCalories(distance);
+    if (duelRun && duel && user) {
+      queueDuel({ inviteId: duel.id, activityId: crypto.randomUUID(), userId: user.id,
+        startedAt: duel.startedAt ?? gpsPoints[0]?.timestamp ?? Date.now() - finalSeconds * 1000,
+        run: { ...duelRun, steps: finalSteps, avg_speed: Math.round(speed * 100) / 100,
+          calories: cal, fp_from_km: fp.fpFromKm, fp_from_steps: fp.fpFromSteps,
+          total_fp: totalFp, integrity_status: result.status },
+      });
+      setSeconds(finalSeconds);
+    }
 
     // Save locally
     const activity = {
@@ -462,7 +495,8 @@ export default function ActivityScreen() {
 
     // Save to DB
     if (user) {
-      await supabase.from("user_activities").insert({
+      if (duelRun) await syncDuels(user.id);
+      else await supabase.from("user_activities").insert({
         user_id: user.id,
         distance_km: activity.distanceKm,
         steps: activity.steps,
@@ -503,21 +537,6 @@ export default function ActivityScreen() {
         }
       } catch { /* ignore */ }
 
-      // Si la course était celle d'un duel 1v1, on enregistre la participation
-      try {
-        const rawDuel = sessionStorage.getItem("active_duel");
-        if (rawDuel && !result.isBlocked) {
-          const duel = JSON.parse(rawDuel);
-          if (duel?.id) {
-            const { error } = await supabase.rpc("submit_duel_run" as any, {
-              p_invite_id: duel.id,
-              p_distance_km: activity.distanceKm,
-              p_duration_seconds: seconds,
-            });
-            if (!error) sessionStorage.removeItem("active_duel");
-          }
-        }
-      } catch { /* ignore */ }
 
 
       await refreshProfile();

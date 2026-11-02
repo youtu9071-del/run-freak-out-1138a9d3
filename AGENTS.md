@@ -1,1 +1,2 @@
 - Group vs group challenges: all FP movements and state changes go through SECURITY DEFINER RPCs (create_group, propose_group_challenge, respond_group_challenge, submit_team_challenge_run, finalize_team_challenge); member lists are snapshotted on the challenge at acceptance so history survives group closure.
+- 1V1 finalization uses a durable per-user outbox and an atomic activity-linked RPC; keep full run statistics separate from immutable GPS-threshold duel results to survive retries without changing group or normal tracking behavior.
