@@ -114,6 +114,9 @@ export default function NotificationsBell() {
                         if (n.type === "support_reply" && n.related_id) {
                           setOpen(false);
                           navigate(`/support?t=${n.related_id}`);
+                        } else if (String(n.type).startsWith("group_challenge")) {
+                          setOpen(false);
+                          navigate("/challenges");
                         }
                       }}
                     >
