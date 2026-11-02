@@ -98,7 +98,7 @@ export default function Challenges() {
 
   useEffect(() => { load(); }, [load]);
 
-  const run = async (fn: () => Promise<{ error: any }>, ok: string) => {
+  const run = async (fn: () => PromiseLike<{ error: any }>, ok: string) => {
     setBusy(true);
     const { error } = await fn();
     setBusy(false);
