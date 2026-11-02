@@ -5,6 +5,7 @@ import { Swords, Lock, Timer, Trophy, Play, CheckCircle2, Handshake } from "luci
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { DUEL_CONTEXT_KEY, pendingDuels, syncDuels } from "@/lib/duelSync";
 
 interface Duel {
   id: string;
@@ -62,7 +63,8 @@ export default function DuelsPanel() {
       .from("challenge_invites")
       .select("*")
       .or(`challenger_id.eq.${user.id},challenged_id.eq.${user.id}`)
-      .in("status", ["pending", "accepted"])
+      .in("status", ["pending", "accepted", "completed"])
+      .limit(20)
       .order("created_at", { ascending: false });
 
     const rows = (data || []) as any[];
@@ -92,6 +94,23 @@ export default function DuelsPanel() {
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!user) return;
+    const update = () => { void load(); };
+    const reconnect = async () => { await syncDuels(user.id); await load(); };
+    const timer = window.setInterval(update, 10000);
+    window.addEventListener("focus", reconnect);
+    window.addEventListener("online", reconnect);
+    window.addEventListener("duel-results-updated", update);
+    window.addEventListener("duel-sync", update);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", reconnect);
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("duel-results-updated", update);
+      window.removeEventListener("duel-sync", update);
+    };
+  }, [load, user?.id]);
 
   const respond = async (id: string, accept: boolean) => {
     setBusy(id);
@@ -113,6 +132,7 @@ export default function DuelsPanel() {
     setConfirmDuel(null);
     if (error) { toast.error(error.message); load(); return; }
     sessionStorage.setItem("active_duel", JSON.stringify({ id: d.id, distance: d.distance_km }));
+    localStorage.setItem(DUEL_CONTEXT_KEY, JSON.stringify({ id: d.id, distance: d.distance_km, userId: user?.id }));
     toast.success(`Cours ${d.distance_km} km pour ce duel 🔥`);
     navigate("/activity");
   };
@@ -160,7 +180,7 @@ export default function DuelsPanel() {
                     vs {d.opponent?.username || "Adversaire"}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {d.distance_km} km · {pending ? (isChallenger ? "En attente de réponse" : "Défi reçu") : "Duel en cours"}
+                    {d.distance_km} km · {pending ? (isChallenger ? "En attente de réponse" : "Défi reçu") : d.status === "completed" ? "Duel terminé" : "Duel en cours"}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -181,12 +201,12 @@ export default function DuelsPanel() {
               )}
 
               {/* Participations */}
-              {d.status === "accepted" && (
+              {(d.status === "accepted" || d.status === "completed") && (
                 <div className="relative mt-3 grid grid-cols-2 gap-2">
                   <div className="rounded-2xl bg-primary/[0.07] border border-primary/20 px-3 py-2">
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Toi</p>
                     <p className="font-display font-black text-sm">
-                      {partLabel(d.mine)}
+                      {partLabel(d.mine, pendingDuels().some(p => p.inviteId === d.id && p.userId === user?.id))}
                     </p>
                   </div>
                   <div className="rounded-2xl bg-secondary/60 border border-border px-3 py-2">
@@ -232,7 +252,7 @@ export default function DuelsPanel() {
                 {d.status === "accepted" && (
                   d.mine ? (
                     <div className="flex-1 rounded-2xl bg-primary/10 border border-primary/25 py-3 flex items-center justify-center gap-2 text-primary font-bold text-sm">
-                      <CheckCircle2 className="w-4 h-4" /> {d.mine.attempt_status === "in_progress" ? "Tentative en cours" : "Tentative terminée"}
+                      <CheckCircle2 className="w-4 h-4" /> {pendingDuels().some(p => p.inviteId === d.id && p.userId === user?.id) ? "Terminé · synchronisation en attente" : d.mine.attempt_status === "in_progress" ? "Tentative en cours" : "Terminé"}
                     </div>
                   ) : (
                     <button
@@ -270,8 +290,11 @@ export default function DuelsPanel() {
   );
 }
 
-function partLabel(p?: Duel["mine"]) {
+export function partLabel(p?: Duel["mine"], queued = false) {
+  if (queued) return "Terminé · synchronisation en attente";
   if (!p) return "Pas encore participé";
   if (p.attempt_status === "in_progress") return "Tentative en cours";
-  return `${Number(p.distance_km).toFixed(2)} km · ${p.completed ? "Distance atteinte" : "Non atteinte"}`;
+  const s = Math.max(0, Math.round(Number(p.duration_seconds)));
+  const time = `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`;
+  return `Terminé · ${Number(p.distance_km).toFixed(2)} km · ${time} · ${p.completed ? "Distance atteinte" : "Non atteinte"}`;
 }
