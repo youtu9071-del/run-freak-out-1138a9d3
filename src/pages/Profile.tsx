@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Flame, Route, Trophy, Camera, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine, LifeBuoy } from "lucide-react";
+import { MapPin, Flame, Route, Trophy, LogOut, Shield, Sparkles, TrendingUp, Zap, ScanLine, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getLevel, getLevelProgress, LEVELS } from "@/lib/gamification";
 import LevelBadge from "@/components/LevelBadge";
@@ -10,13 +10,12 @@ import { useNavigate } from "react-router-dom";
 import ChallengeInvites from "@/components/ChallengeInvites";
 import NotificationsBell from "@/components/NotificationsBell";
 import ReferralCard from "@/components/ReferralCard";
+import ProfilePhoto from "@/components/ProfilePhoto";
 
 export default function Profile() {
-  const { profile, user, signOut, refreshProfile } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { profile, user, signOut } = useAuth();
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
-  const [uploading, setUploading] = useState(false);
   const { isAdmin, isPartner } = useAdmin();
   const navigate = useNavigate();
   const [referralEnabled, setReferralEnabled] = useState(false);
@@ -62,19 +61,6 @@ export default function Profile() {
     setFollowingCount(following || 0);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/avatar.${ext}`;
-    await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-    await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("user_id", user.id);
-    await refreshProfile();
-    setUploading(false);
-  };
-
   const stats = [
     { icon: Route, label: "Distance", value: totalKm.toFixed(1), unit: "km", color: "text-primary" },
     { icon: Flame, label: "Freak Points", value: Number(profile?.total_fp || 0).toFixed(1), unit: "FP", color: "text-accent" },
@@ -111,29 +97,7 @@ export default function Profile() {
         />
 
         <div className="relative flex items-center gap-4">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="relative w-20 h-20 rounded-2xl overflow-hidden neon-glow group shrink-0"
-          >
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="Profil" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full gradient-primary flex items-center justify-center">
-                <span className="font-display font-black text-3xl text-primary-foreground">
-                  {(profile?.username || "R")[0].toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-background/60 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
-              <Camera className="w-5 h-5 text-foreground" />
-            </div>
-            {uploading && (
-              <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              </div>
-            )}
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-          </button>
+          <ProfilePhoto />
 
           <div className="flex-1 min-w-0">
             <h1 className="font-display font-black text-xl sm:text-2xl truncate">
