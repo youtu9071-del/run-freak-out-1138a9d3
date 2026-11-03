@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { DUEL_CONTEXT_KEY, pendingDuels, syncDuels } from "@/lib/duelSync";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { duelAttemptState } from "@/lib/duelPresentation";
 
 interface Duel {
   id: string;
@@ -168,13 +170,12 @@ export default function DuelsPanel() {
               <div className="pointer-events-none absolute -top-16 -right-16 w-44 h-44 rounded-full bg-accent/10 blur-3xl" />
 
               <div className="relative flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-secondary flex items-center justify-center shrink-0 border border-border">
-                  {d.opponent?.avatar_url ? (
-                    <img src={d.opponent.avatar_url} alt={d.opponent.username} loading="lazy" className="w-full h-full object-cover" />
-                  ) : (
+                <Avatar aria-hidden="true" className="w-12 h-12 rounded-2xl border border-border bg-secondary">
+                  <AvatarImage src={d.opponent?.avatar_url || undefined} alt="" className="object-cover" />
+                  <AvatarFallback className="rounded-2xl bg-secondary">
                     <Swords className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </div>
+                  </AvatarFallback>
+                </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="font-display font-bold text-sm truncate">
                     vs {d.opponent?.username || "Adversaire"}
@@ -206,13 +207,13 @@ export default function DuelsPanel() {
                   <div className="rounded-2xl bg-primary/[0.07] border border-primary/20 px-3 py-2">
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Toi</p>
                     <p className="font-display font-black text-sm">
-                      {partLabel(d.mine, pendingDuels().some(p => p.inviteId === d.id && p.userId === user?.id))}
+                      {partLabel(d.mine, pendingDuels().some(p => p.inviteId === d.id && p.userId === user?.id), d.status)}
                     </p>
                   </div>
                   <div className="rounded-2xl bg-secondary/60 border border-border px-3 py-2">
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Adversaire</p>
                     <p className="font-display font-black text-sm">
-                      {partLabel(d.theirs)}
+                      {partLabel(d.theirs, false, d.status)}
                     </p>
                   </div>
                 </div>
@@ -220,8 +221,14 @@ export default function DuelsPanel() {
 
               <div className="relative mt-3 flex items-center gap-2 text-[10px] text-muted-foreground">
                 <Trophy className="w-3.5 h-3.5 text-accent" />
-                Récompense potentielle <span className="text-accent font-bold">{payout} FP</span>
-                <span className="opacity-60">· frais {Number(d.coffre_fee || 1)} FP</span>
+                {d.status === "completed" ? (
+                  <span>{d.winner_id ? (d.winner_id === user?.id ? `Victoire · ${Number(d.winner_reward)} FP gagnés` : "Défaite") : "Match nul · mises remboursées"}</span>
+                ) : (
+                  <>
+                    Récompense potentielle <span className="text-accent font-bold">{payout} FP</span>
+                    <span className="opacity-60">· frais {Number(d.coffre_fee || 1)} FP</span>
+                  </>
+                )}
               </div>
 
               {/* Actions */}
@@ -290,10 +297,12 @@ export default function DuelsPanel() {
   );
 }
 
-export function partLabel(p?: Duel["mine"], queued = false) {
-  if (queued) return "Terminé · synchronisation en attente";
-  if (!p) return "Pas encore participé";
-  if (p.attempt_status === "in_progress") return "Tentative en cours";
+export function partLabel(p?: Duel["mine"], queued = false, duelStatus = "accepted") {
+  const state = duelAttemptState(p, duelStatus, queued);
+  if (state === "closed_unfinished") return "Terminé · Distance non atteinte";
+  if (state === "sync_pending") return "Terminé · synchronisation en attente";
+  if (state === "not_started" || !p) return "Pas encore participé";
+  if (state === "in_progress") return "Tentative en cours";
   const s = Math.max(0, Math.round(Number(p.duration_seconds)));
   const time = `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`;
   return `Terminé · ${Number(p.distance_km).toFixed(2)} km · ${time} · ${p.completed ? "Distance atteinte" : "Non atteinte"}`;
