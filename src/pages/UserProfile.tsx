@@ -9,6 +9,7 @@ import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export default function UserProfile() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,7 @@ export default function UserProfile() {
   const [rank, setRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [challengeOpen, setChallengeOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [challengeDistance, setChallengeDistance] = useState(5);
   const [challengeLevel, setChallengeLevel] = useState<string>("ROOKIE I");
   const [challengeDate, setChallengeDate] = useState<string>(() => {
@@ -127,7 +129,13 @@ export default function UserProfile() {
 
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center mb-6">
-        <div className="w-20 h-20 rounded-full overflow-hidden mb-3 neon-glow">
+        <Button
+          variant="ghost"
+          disabled={!profile.avatar_url}
+          onClick={() => setPhotoOpen(true)}
+          aria-label={`Voir la photo de ${profile.username}`}
+          className="w-20 h-20 p-0 rounded-full overflow-hidden mb-3 neon-glow disabled:opacity-100"
+        >
           {profile.avatar_url ? (
             <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -137,7 +145,7 @@ export default function UserProfile() {
               </span>
             </div>
           )}
-        </div>
+        </Button>
 
         <h1 className="font-display font-black text-2xl">{profile.username}</h1>
         <div className="flex items-center gap-1 text-muted-foreground text-sm mt-1">
@@ -195,6 +203,19 @@ export default function UserProfile() {
         <StatCard icon={Trophy} label="Activités" value={profile.total_activities || 0} delay={0.15} />
         <StatCard icon={Flame} label="Freak Points" value={Number(profile.total_fp || 0).toFixed(1)} unit="FP" delay={0.2} className="col-span-2" />
       </div>
+
+      <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-lg rounded-lg" aria-describedby={undefined}>
+          <DialogTitle>Photo de {profile.username}</DialogTitle>
+          {profile.avatar_url && (
+            <img
+              src={profile.avatar_url}
+              alt={`Photo de profil de ${profile.username}`}
+              className="w-full max-h-[70dvh] object-contain rounded-md"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Challenge Dialog */}
       <Dialog open={challengeOpen} onOpenChange={setChallengeOpen}>
