@@ -29,6 +29,13 @@
       "when": 1793661167213,
       "tag": "0003_duel_atomic_gps_finalization",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793756397188,
+      "tag": "0004_duel_threshold_minimum_and_recovery",
+      "breakpoints": true
     }
   ]
 }
