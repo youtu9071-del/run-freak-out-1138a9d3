@@ -1357,6 +1357,10 @@ export type Database = {
           total_price: number
         }[]
       }
+      recover_duel_attempt: {
+        Args: { p_invite_id: string; p_user_id: string }
+        Returns: boolean
+      }
       referral_enabled: { Args: never; Returns: boolean }
       refuse_duel_invite: { Args: { p_invite_id: string }; Returns: undefined }
       resolve_duel: {
