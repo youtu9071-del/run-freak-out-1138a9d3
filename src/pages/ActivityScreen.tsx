@@ -866,7 +866,7 @@ export default function ActivityScreen() {
       </AnimatePresence>
 
       {/* Bandeau événement lié à la course */}
-      {eventRef.current && state !== "finished" && (
+      {eventRef.current && (
         <div className="px-4 pb-2 relative z-20">
           <div className="rounded-2xl bg-primary/10 border border-primary/30 px-3 py-2 flex items-center gap-2">
             <Trophy className="w-4 h-4 text-primary shrink-0" />
