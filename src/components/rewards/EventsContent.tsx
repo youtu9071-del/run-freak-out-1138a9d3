@@ -1,13 +1,15 @@
 import { motion } from "framer-motion";
-import { Calendar, MapPin, Trophy, Users, Clock, CheckCircle2 } from "lucide-react";
+import { Calendar, MapPin, Trophy, Users, Clock, CheckCircle2, Play } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { setEventContext } from "@/lib/eventContext";
 
 interface Event {
   id: string;
@@ -32,6 +34,7 @@ interface Participation {
 
 export default function EventsContent() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [participations, setParticipations] = useState<Participation[]>([]);
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
@@ -66,6 +69,26 @@ export default function EventsContent() {
     }
     if (partRes.data) setParticipations(partRes.data as Participation[]);
     setLoading(false);
+
+    // Alerte "participation possible" : une seule fois par événement et par session
+    const joinedIds = new Set((partRes.data || []).map((p: any) => p.event_id));
+    const joinable = ((eventsRes.data || []) as Event[]).filter(
+      (e) => e.status === "active" && !joinedIds.has(e.id) && new Date(e.end_date).getTime() > Date.now()
+    );
+    for (const e of joinable) {
+      const flag = `event_join_hint_${e.id}`;
+      if (!sessionStorage.getItem(flag)) {
+        sessionStorage.setItem(flag, "1");
+        toast(`⚡ Événement en cours : « ${e.title} » — tu peux participer !`, { duration: 6000 });
+      }
+    }
+  };
+
+  const runEvent = (event: Event) => {
+    if (!user) return;
+    setEventContext({ id: event.id, title: event.title, distance: event.distance_km, userId: user.id });
+    toast.success(`Course liée à « ${event.title} » — objectif ${event.distance_km} km 🏃`);
+    navigate("/activity");
   };
 
   const joinEvent = async (eventId: string) => {
@@ -89,7 +112,7 @@ export default function EventsContent() {
       loadData();
       return;
     }
-    toast.success("Inscription réussie ! 🎉");
+    toast.success("Inscription réussie ! 🎉 Lance ta course depuis cette page.");
     loadData();
   };
 
@@ -159,7 +182,13 @@ export default function EventsContent() {
                     {!joined && event.status !== "completed" && (
                       <Button onClick={() => joinEvent(event.id)} className="w-full font-bold" size="sm">Participer</Button>
                     )}
-                    {joined && !participation?.completed && (
+                    {joined && !participation?.completed && event.status === "active" && (
+                      <Button onClick={() => runEvent(event)} className="w-full font-bold" size="sm">
+                        <Play className="w-4 h-4 mr-1.5" />
+                        Courir pour cet événement
+                      </Button>
+                    )}
+                    {joined && !participation?.completed && event.status !== "active" && (
                       <div className="flex items-center gap-2 text-xs text-primary"><CheckCircle2 className="w-4 h-4" /><span className="font-medium">Inscrit — continue à courir !</span></div>
                     )}
                   </CardContent>
