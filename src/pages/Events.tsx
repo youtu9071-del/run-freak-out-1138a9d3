@@ -1,13 +1,15 @@
 import { motion } from "framer-motion";
-import { Calendar, MapPin, Trophy, Users, Clock, CheckCircle2 } from "lucide-react";
+import { Calendar, MapPin, Trophy, Users, Clock, CheckCircle2, Play } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { setEventContext } from "@/lib/eventContext";
 
 interface Event {
   id: string;
