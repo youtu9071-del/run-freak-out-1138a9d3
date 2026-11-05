@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lazy, Suspense } from "react";
 import { requestNotifPermission, showActivityNotification, hideActivityNotification } from "@/lib/activityNotification";
 import { readDuelContext, queueDuel, syncDuels, DUEL_CONTEXT_KEY } from "@/lib/duelSync";
+import { readEventContext, clearEventContext, setEventContext } from "@/lib/eventContext";
 
 const ActivityMap = lazy(() => import("@/components/ActivityMap"));
 const RunShareCard = lazy(() => import("@/components/RunShareCard"));
@@ -45,6 +46,7 @@ export default function ActivityScreen() {
   const baseSecondsRef = useRef(0);
   const snapshotRef = useRef<any>(null);
   const duelRef = useRef(readDuelContext());
+  const eventRef = useRef(readEventContext());
   const finishingRef = useRef(false);
   const duelTraceRef = useRef<(GpsPoint & { duelCounted: boolean })[]>([]);
 
@@ -367,6 +369,9 @@ export default function ActivityScreen() {
         duelRef.current = saved.duel;
         duelTraceRef.current = saved.duelTrace || [];
       }
+      if (saved.event && (!saved.event.userId || saved.event.userId === user?.id)) {
+        eventRef.current = saved.event;
+      }
       setGpsPoints(pts);
       if (pts.length) {
         lastPointRef.current = pts[pts.length - 1];
@@ -387,6 +392,7 @@ export default function ActivityScreen() {
         steps,
         gpsPoints: gpsPoints.slice(-800),
         ...(duelRef.current ? { duel: duelRef.current, duelTrace: duelTraceRef.current } : {}),
+        ...(eventRef.current ? { event: eventRef.current } : {}),
         savedAt: Date.now(),
       };
       snapshotRef.current = snap;
@@ -406,6 +412,10 @@ export default function ActivityScreen() {
     if (duelRef.current && user) {
       duelRef.current = { ...duelRef.current, userId: user.id, startedAt: Date.now() };
       localStorage.setItem(DUEL_CONTEXT_KEY, JSON.stringify(duelRef.current));
+    }
+    if (eventRef.current && user) {
+      eventRef.current = { ...eventRef.current, userId: user.id, startedAt: Date.now() };
+      setEventContext(eventRef.current);
     }
     setState("running");
     startGps();
@@ -435,6 +445,10 @@ export default function ActivityScreen() {
     hideActivityNotification();
     stopGps();
     setState("finished");
+    // La progression de l'événement est synchronisée plus bas via sync_event_progress ;
+    // le contexte local n'est plus nécessaire une fois la course terminée.
+    eventRef.current = null;
+    clearEventContext();
     const speed = finalSeconds > 2 && distance > 0 ? distance / (finalSeconds / 3600) : 0;
     // Pas cohérents : impossible de parcourir 1 km avec 0 pas → estimation GPS (~1250 pas/km)
     const finalSteps = Math.max(steps, distance >= 0.1 ? Math.round(distance * 1250) : 0);
@@ -850,6 +864,18 @@ export default function ActivityScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Bandeau événement lié à la course */}
+      {eventRef.current && (
+        <div className="px-4 pb-2 relative z-20">
+          <div className="rounded-2xl bg-primary/10 border border-primary/30 px-3 py-2 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-primary shrink-0" />
+            <p className="text-xs font-medium text-foreground truncate">
+              🎉 {eventRef.current.title} — objectif {eventRef.current.distance} km
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Panneau statistiques + contrôles */}
       <div className="relative z-20 -mt-6 px-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
