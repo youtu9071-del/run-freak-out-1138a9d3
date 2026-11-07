@@ -1,5 +1,10 @@
 # Tâches
 
+- [ ] Auditer les données et fonctions serveur des événements et du 1V1.
+- [ ] Fiabiliser le cumul événement par activité unique et l'enregistrement hors ligne.
+- [ ] Corriger la cohérence GPS / activité complète / seuil 1V1 et les faux rejets.
+- [ ] Exécuter les tests ciblés et documenter les limites de vérification.
+
 - [x] Masquer pas, vitesse et points GPS des écrans de course sans modifier les calculs.
 - [x] Rééquilibrer les statistiques visibles autour de distance, durée et allure.
 - [x] Masquer le total de pas sur l'accueil et les profils sans toucher à son enregistrement.

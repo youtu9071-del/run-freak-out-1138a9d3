@@ -3,13 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Square, Timer, ChevronLeft, Shield, ShieldAlert, ShieldX, MapPin, Gauge, Flame, Crosshair, Trophy, Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { calculateCalories } from "@/lib/gamification";
-import { GpsPoint, haversineDistance, analyzeSpeed, analyzeGpsJump, analyzeSession, CheatAlert, SessionIntegrity } from "@/lib/anticheat";
+import { GpsPoint, analyzeSpeed, analyzeSession, CheatAlert, SessionIntegrity } from "@/lib/anticheat";
 import { calculateFP, saveActivity } from "@/lib/freakPoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { lazy, Suspense } from "react";
 import { requestNotifPermission, showActivityNotification, hideActivityNotification } from "@/lib/activityNotification";
 import { readDuelContext, queueDuel, syncDuels, DUEL_CONTEXT_KEY } from "@/lib/duelSync";
+import { toast } from "sonner";
+import { advanceGps, newGpsState, validFix, RunPoint } from "@/lib/gpsEngine";
+import { queueActivity, syncActivities } from "@/lib/activitySync";
 import { readEventContext, clearEventContext, setEventContext } from "@/lib/eventContext";
 
 const ActivityMap = lazy(() => import("@/components/ActivityMap"));
@@ -36,8 +39,11 @@ export default function ActivityScreen() {
   const [showShare, setShowShare] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
-  const lastPointRef = useRef<GpsPoint | null>(null);
-  const smoothedRef = useRef<GpsPoint | null>(null);
+  const gpsEngineRef = useRef(newGpsState());
+  const rawPointsRef = useRef<GpsPoint[]>([]);
+  const traceRef = useRef<RunPoint[]>([]);
+  const activityIdRef = useRef(crypto.randomUUID());
+  const activityStartRef = useRef<number | null>(null);
   const restoredRef = useRef(false);
   const wakeLockRef = useRef<any>(null);
   const lastFixRef = useRef<number>(0);
@@ -48,7 +54,7 @@ export default function ActivityScreen() {
   const duelRef = useRef(readDuelContext());
   const eventRef = useRef(readEventContext());
   const finishingRef = useRef(false);
-  const duelTraceRef = useRef<(GpsPoint & { duelCounted: boolean })[]>([]);
+
 
   // ─── Persistance de la course (reprise automatique après veille / fermeture) ───
   const RUN_KEY = "freakout_active_run";
@@ -159,56 +165,17 @@ export default function ActivityScreen() {
           accuracy: acc,
         };
 
-        // 1) Rejet des fixes de mauvaise qualité (perte de signal / triangulation réseau)
-        if (acc > 35) return;
-
-        // 2) Lissage exponentiel pondéré par la précision (réduit la dérive)
-        const prevSmoothed = smoothedRef.current;
-        let point: GpsPoint = raw;
-        if (prevSmoothed) {
-          const alpha = Math.min(1, Math.max(0.35, 12 / acc)); // bon fix => on suit le GPS
-          point = {
-            lat: prevSmoothed.lat + alpha * (raw.lat - prevSmoothed.lat),
-            lng: prevSmoothed.lng + alpha * (raw.lng - prevSmoothed.lng),
-            timestamp: raw.timestamp,
-            accuracy: acc,
-          };
+        if (!validFix(raw)) return;
+        rawPointsRef.current.push(raw);
+        const update = advanceGps(gpsEngineRef.current, raw);
+        if (update.quality === "invalid") return;
+        if (update.quality === "weak") setGpsStatus("unavailable");
+        if (update.points.length) {
+          traceRef.current.push(...update.points);
+          setGpsPoints(prev => [...prev, ...update.points]);
         }
-        smoothedRef.current = point;
+        if (update.distance > 0) setDistance(prev => prev + update.distance);
 
-        const anchor = lastPointRef.current;
-        if (!anchor) {
-          if (duelRef.current) duelTraceRef.current.push({ ...point, duelCounted: false });
-          lastPointRef.current = point;
-          setGpsPoints((prev) => [...prev, point]);
-          return;
-        }
-
-        const d = haversineDistance(anchor, point); // km
-        const dt = (point.timestamp - anchor.timestamp) / 1000; // s
-        const speedKmh = dt > 0 ? d / (dt / 3600) : 0;
-
-        // 3) Saut de position irréaliste (téléportation / retour d'arrière-plan) : on recale sans compter
-        if (speedKmh > 45 || (d > 0.25 && dt < 15)) {
-          if (duelRef.current) duelTraceRef.current.push({ ...point, duelCounted: false });
-          lastPointRef.current = point;
-          setGpsPoints((prev) => [...prev, point]);
-          return;
-        }
-
-        // 4) Zone morte adaptative : à l'arrêt le GPS dérive, on n'accumule pas ce bruit.
-        //    Le seuil dépend de la précision courante (min 2 m, max 12 m).
-        const noiseKm = Math.min(0.012, Math.max(0.002, (acc * 0.6) / 1000));
-
-        if (d >= noiseKm) {
-          if (duelRef.current) duelTraceRef.current.push({ ...point, duelCounted: true });
-          setDistance((prev) => prev + d);
-          const alert = analyzeGpsJump(anchor, point);
-          if (alert) setLiveAlerts((prev) => [...prev.slice(-4), alert]);
-          lastPointRef.current = point; // on avance l'ancre uniquement sur un déplacement validé
-          setGpsPoints((prev) => [...prev, point]);
-        }
-        // sinon : ancre conservée → les micro-déplacements réels finissent par franchir le seuil
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) setGpsStatus("denied");
@@ -251,7 +218,7 @@ export default function ActivityScreen() {
 
     const restartWatch = () => {
       stopGps();
-      smoothedRef.current = null; // évite un lissage à partir d'un fix périmé
+      // The engine breaks segments across long gaps; a watcher restart alone does not erase a valid anchor.
       lastFixRef.current = Date.now();
       startGps();
     };
@@ -353,6 +320,7 @@ export default function ActivityScreen() {
       const raw = localStorage.getItem(RUN_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
+      if (saved?.userId && saved.userId !== user?.id) return;
       if (!saved || (saved.state !== "running" && saved.state !== "paused")) return;
       const running = saved.state === "running";
       // Le temps écoulé pendant que le téléphone était verrouillé est réintégré
@@ -364,17 +332,22 @@ export default function ActivityScreen() {
       setSeconds(baseSecondsRef.current);
       setDistance(saved.distance || 0);
       setSteps(saved.steps || 0);
+      activityIdRef.current = saved.activityId || crypto.randomUUID();
+      activityStartRef.current = saved.activityStartedAt || saved.savedAt - baseSecondsRef.current * 1000;
+      traceRef.current = saved.trace || saved.duelTrace || saved.gpsPoints || [];
+      rawPointsRef.current = saved.rawPoints || [];
+      gpsEngineRef.current = newGpsState();
       const pts: GpsPoint[] = saved.gpsPoints || [];
       if (saved.duel && saved.duel.userId === user?.id) {
         duelRef.current = saved.duel;
-        duelTraceRef.current = saved.duelTrace || [];
+
       }
       if (saved.event && (!saved.event.userId || saved.event.userId === user?.id)) {
         eventRef.current = saved.event;
       }
       setGpsPoints(pts);
       if (pts.length) {
-        lastPointRef.current = pts[pts.length - 1];
+
         setInitialPos({ lat: pts[pts.length - 1].lat, lng: pts[pts.length - 1].lng });
       }
       setState(saved.state);
@@ -390,8 +363,13 @@ export default function ActivityScreen() {
         seconds,
         distance,
         steps,
+        userId: user?.id,
+        activityId: activityIdRef.current,
+        activityStartedAt: activityStartRef.current,
+        trace: traceRef.current,
+        rawPoints: rawPointsRef.current.slice(-800),
         gpsPoints: gpsPoints.slice(-800),
-        ...(duelRef.current ? { duel: duelRef.current, duelTrace: duelTraceRef.current } : {}),
+        ...(duelRef.current ? { duel: duelRef.current, duelTrace: traceRef.current } : {}),
         ...(eventRef.current ? { event: eventRef.current } : {}),
         savedAt: Date.now(),
       };
@@ -409,6 +387,7 @@ export default function ActivityScreen() {
     await requestNotifPermission();
     baseSecondsRef.current = 0;
     runStartRef.current = Date.now();
+    activityStartRef.current = Date.now();
     if (duelRef.current && user) {
       duelRef.current = { ...duelRef.current, userId: user.id, startedAt: Date.now() };
       localStorage.setItem(DUEL_CONTEXT_KEY, JSON.stringify(duelRef.current));
@@ -428,6 +407,7 @@ export default function ActivityScreen() {
     persistNow();
   };
   const handleResume = () => {
+    gpsEngineRef.current = newGpsState();
     runStartRef.current = Date.now();
     setState("running");
     startGps();
@@ -440,19 +420,22 @@ export default function ActivityScreen() {
     const duel = duelRef.current;
     const duelRun = duel && user ? {
       distance_km: distance, duration_seconds: finalSeconds,
-      gps_points: duelTraceRef.current.length ? duelTraceRef.current : gpsPoints,
+      gps_points: traceRef.current,
+      gps_version: 2,
+      started_at: new Date(activityStartRef.current ?? Date.now() - finalSeconds * 1000).toISOString(),
+      created_at: new Date().toISOString(),
     } : null;
     hideActivityNotification();
     stopGps();
-    setState("finished");
-    // La progression de l'événement est synchronisée plus bas via sync_event_progress ;
+    setSeconds(finalSeconds);
+    // La progression est traitée atomiquement lors de l’insertion de l’activité ;
     // le contexte local n'est plus nécessaire une fois la course terminée.
     eventRef.current = null;
     clearEventContext();
     const speed = finalSeconds > 2 && distance > 0 ? distance / (finalSeconds / 3600) : 0;
     // Pas cohérents : impossible de parcourir 1 km avec 0 pas → estimation GPS (~1250 pas/km)
     const finalSteps = Math.max(steps, distance >= 0.1 ? Math.round(distance * 1250) : 0);
-    const result = analyzeSession(gpsPoints, finalSteps, distance, speed);
+    const result = analyzeSession(traceRef.current, steps, distance, speed);
 
     // ─── No-movement guard : bloque toute attribution de FP si l'utilisateur n'a pas bougé ───
     // Conditions cumulatives : distance mesurée < 50 m ET moins de 5 points GPS valides ET pas de pas détectés
@@ -468,11 +451,6 @@ export default function ActivityScreen() {
         ...result.alerts,
         { level: "fraud", reason: "Aucun déplacement détecté — FP non attribués", timestamp: Date.now() },
       ];
-    } else {
-      // Course validée par défaut dès qu'un déplacement réel est détecté
-      result.isBlocked = false;
-      result.status = "clean";
-      result.alerts = [];
     }
 
     setIntegrity(result);
@@ -480,8 +458,9 @@ export default function ActivityScreen() {
     const fp = calculateFP(distance, finalSteps);
     const totalFp = result.isBlocked ? 0 : fp.totalFp;
     const cal = calculateCalories(distance);
+    try {
     if (duelRun && duel && user) {
-      queueDuel({ inviteId: duel.id, activityId: crypto.randomUUID(), userId: user.id,
+      queueDuel({ inviteId: duel.id, activityId: activityIdRef.current, userId: user.id,
         startedAt: duel.startedAt ?? gpsPoints[0]?.timestamp ?? Date.now() - finalSeconds * 1000,
         run: { ...duelRun, steps: finalSteps, avg_speed: Math.round(speed * 100) / 100,
           calories: cal, fp_from_km: fp.fpFromKm, fp_from_steps: fp.fpFromSteps,
@@ -490,13 +469,31 @@ export default function ActivityScreen() {
       setSeconds(finalSeconds);
     }
 
+    else if (user) {
+      queueActivity({ id: activityIdRef.current, user_id: user.id,
+        started_at: new Date(activityStartRef.current ?? Date.now() - finalSeconds * 1000).toISOString(),
+        created_at: new Date().toISOString(), gps_version: 2,
+        distance_km: distance, steps: finalSteps, duration_seconds: finalSeconds,
+        avg_speed: Math.round(speed * 100) / 100, calories: cal,
+        fp_from_km: fp.fpFromKm, fp_from_steps: 0, total_fp: totalFp,
+        integrity_status: result.status, gps_points: traceRef.current as any,
+      });
+    }
+    } catch {
+      finishingRef.current = false;
+      toast.error("Course non sauvegardée : libère de l’espace puis réessaie. La course reste ouverte.");
+      setState("paused");
+      baseSecondsRef.current = finalSeconds; runStartRef.current = null;
+      return;
+    }
+    setState("finished");
     // Save locally
     const activity = {
       id: Date.now().toString(),
       date: new Date().toISOString().split("T")[0],
       distanceKm: Math.round(distance * 100) / 100,
       steps: finalSteps,
-      durationMin: Math.round(seconds / 60),
+      durationMin: Math.round(finalSeconds / 60),
       avgSpeed: Math.round(speed * 100) / 100,
       calories: cal,
       fpFromKm: fp.fpFromKm,
@@ -510,26 +507,7 @@ export default function ActivityScreen() {
     // Save to DB
     if (user) {
       if (duelRun) await syncDuels(user.id);
-      else await supabase.from("user_activities").insert({
-        user_id: user.id,
-        distance_km: activity.distanceKm,
-        steps: activity.steps,
-        duration_seconds: seconds,
-        avg_speed: activity.avgSpeed,
-        calories: cal,
-        fp_from_km: fp.fpFromKm,
-        fp_from_steps: fp.fpFromSteps,
-        total_fp: totalFp,
-        integrity_status: result.status as any,
-        gps_points: gpsPoints as any,
-      });
-
-      // Progression automatique des événements auxquels l'utilisateur participe
-      if (!result.isBlocked && activity.distanceKm > 0) {
-        try {
-          await supabase.rpc("sync_event_progress" as any, { p_distance_km: activity.distanceKm });
-        } catch { /* ignore */ }
-      }
+      else await syncActivities(user.id);
 
       // Les stats du profil sont synchronisées automatiquement par un trigger en base
 

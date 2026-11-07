@@ -2,3 +2,5 @@
 - 1V1 finalization uses a durable per-user outbox and an atomic activity-linked RPC; keep full run statistics separate from immutable GPS-threshold duel results to survive retries without changing group or normal tracking behavior.
 - 1V1 cards derive terminal attempt presentation from the persisted duel status before legacy participation state, so expired closed duels never appear live; do not invent missing run statistics.
 - Profile photos use a dedicated manager and client-side resize/re-encoding before Storage upload; unique object paths avoid stale caches and cleanup is restricted to the owner's avatar folder.
+- Event progress uses the activity-insert ledger keyed by participation/activity, with snapshotted dates and full-run containment; legacy distance-only RPCs must not add progress because they cannot be idempotent.
+- GPS v2 buffers short raw segments without geometric smoothing, marks path breaks explicitly, and validates accounting on insertion; normal and duel runs use durable UUID outboxes and preserve actual run dates for delayed uploads.
