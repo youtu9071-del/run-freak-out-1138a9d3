@@ -15,6 +15,7 @@ export interface GpsPoint {
   lng: number;
   timestamp: number;
   accuracy: number;
+  duelCounted?: boolean;
 }
 
 // ─── Seuils de vitesse (running) ───
@@ -130,6 +131,7 @@ export function analyzeSession(
   // Compter les vraies fraudes GPS (au moins 2 sauts pour confirmer)
   let gpsFraudCount = 0;
   for (let i = 1; i < gpsPoints.length; i++) {
+    if (gpsPoints[i].duelCounted === false) continue;
     const a = analyzeGpsJump(gpsPoints[i - 1], gpsPoints[i]);
     if (a?.level === "fraud") gpsFraudCount++;
     if (a) alerts.push(a);
@@ -145,6 +147,7 @@ export function analyzeSession(
   if (gpsPoints.length > 2) {
     const speeds: number[] = [];
     for (let i = 1; i < gpsPoints.length; i++) {
+      if (gpsPoints[i].duelCounted === false) continue;
       const d = haversineDistance(gpsPoints[i - 1], gpsPoints[i]);
       const t = (gpsPoints[i].timestamp - gpsPoints[i - 1].timestamp) / 3600000;
       if (t > 0) speeds.push(d / t);
