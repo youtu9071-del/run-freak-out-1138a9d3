@@ -36,6 +36,13 @@
       "when": 1793756397188,
       "tag": "0004_duel_threshold_minimum_and_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794054018876,
+      "tag": "0005_activity_event_ledger_and_consistent_gps",
+      "breakpoints": true
     }
   ]
 }

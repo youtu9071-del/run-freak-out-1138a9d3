@@ -352,14 +352,55 @@ export type Database = {
           },
         ]
       }
+      event_activity_ledger: {
+        Row: {
+          activity_id: string
+          distance_km: number
+          historical: boolean
+          participation_id: string
+          recorded_at: string
+        }
+        Insert: {
+          activity_id: string
+          distance_km: number
+          historical?: boolean
+          participation_id: string
+          recorded_at?: string
+        }
+        Update: {
+          activity_id?: string
+          distance_km?: number
+          historical?: boolean
+          participation_id?: string
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_activity_ledger_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "user_activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_activity_ledger_participation_id_fkey"
+            columns: ["participation_id"]
+            isOneToOne: false
+            referencedRelation: "event_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           completed: boolean
           completed_at: string | null
           distance_completed: number
           event_distance_km: number | null
+          event_end_date: string | null
           event_id: string | null
           event_reward_fp: number | null
+          event_start_date: string | null
           event_title: string | null
           fp_earned: number
           id: string
@@ -371,8 +412,10 @@ export type Database = {
           completed_at?: string | null
           distance_completed?: number
           event_distance_km?: number | null
+          event_end_date?: string | null
           event_id?: string | null
           event_reward_fp?: number | null
+          event_start_date?: string | null
           event_title?: string | null
           fp_earned?: number
           id?: string
@@ -384,8 +427,10 @@ export type Database = {
           completed_at?: string | null
           distance_completed?: number
           event_distance_km?: number | null
+          event_end_date?: string | null
           event_id?: string | null
           event_reward_fp?: number | null
+          event_start_date?: string | null
           event_title?: string | null
           fp_earned?: number
           id?: string
@@ -1087,14 +1132,17 @@ export type Database = {
           calories: number | null
           created_at: string | null
           distance_km: number
+          duel_invite_id: string | null
           duration_seconds: number
           fp_from_km: number | null
           fp_from_steps: number | null
           gps_points: Json | null
+          gps_version: number
           id: string
           integrity_status:
             | Database["public"]["Enums"]["integrity_status"]
             | null
+          started_at: string | null
           steps: number
           total_fp: number | null
           user_id: string
@@ -1104,14 +1152,17 @@ export type Database = {
           calories?: number | null
           created_at?: string | null
           distance_km?: number
+          duel_invite_id?: string | null
           duration_seconds?: number
           fp_from_km?: number | null
           fp_from_steps?: number | null
           gps_points?: Json | null
+          gps_version?: number
           id?: string
           integrity_status?:
             | Database["public"]["Enums"]["integrity_status"]
             | null
+          started_at?: string | null
           steps?: number
           total_fp?: number | null
           user_id: string
@@ -1121,19 +1172,30 @@ export type Database = {
           calories?: number | null
           created_at?: string | null
           distance_km?: number
+          duel_invite_id?: string | null
           duration_seconds?: number
           fp_from_km?: number | null
           fp_from_steps?: number | null
           gps_points?: Json | null
+          gps_version?: number
           id?: string
           integrity_status?:
             | Database["public"]["Enums"]["integrity_status"]
             | null
+          started_at?: string | null
           steps?: number
           total_fp?: number | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_activities_duel_invite_id_fkey"
+            columns: ["duel_invite_id"]
+            isOneToOne: false
+            referencedRelation: "challenge_invites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -1421,6 +1483,7 @@ export type Database = {
       }
       update_profile_stats: { Args: { p_user_id: string }; Returns: undefined }
       user_active_group: { Args: { p_user: string }; Returns: string }
+      valid_gps_point: { Args: { pt: Json }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "partner"
